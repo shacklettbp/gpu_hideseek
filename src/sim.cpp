@@ -724,6 +724,106 @@ inline void agentRewardsSystem(Engine &ctx,
     reward.reward = reward_val;
 }
 
+inline void mergedSystem(Engine &ctx, WorldReset &reset)
+{
+    resetSystem(reset);
+    TmpAllocator::get().reset();
+
+    {
+        const CountT num_agents = ctx.data().numActiveAgents;
+
+        for (CountT i = 0; i < num_agents; i++) {
+            Entity agent_iface = ctx.data().agentInterfaces[i];
+            Action &action = ctx.getUnsafe<
+
+        auto move_sys = builder.addToGraph<ParallelForNode<Engine, movementSystem,
+            Action, SimEntity, AgentType>>({prep_finish});
+
+    auto broadphase_setup_sys = phys::RigidBodyPhysicsSystem::setupBroadphaseTasks(builder,
+        {move_sys});
+
+    auto action_sys = builder.addToGraph<ParallelForNode<Engine, actionSystem,
+        Action, SimEntity, AgentType>>({broadphase_setup_sys});
+
+    auto substep_sys = phys::RigidBodyPhysicsSystem::setupSubstepTasks(builder,
+        {action_sys}, numPhysicsSubsteps);
+
+    auto agent_zero_vel = builder.addToGraph<ParallelForNode<Engine,
+        agentZeroVelSystem, Velocity, render::ViewSettings>>(
+            {substep_sys});
+
+    auto sim_done = agent_zero_vel;
+
+    auto phys_cleanup_sys = phys::RigidBodyPhysicsSystem::setupCleanupTasks(
+        builder, {sim_done});
+
+    if (cfg.enableRender) {
+        render::RenderingSystem::setupTasks(builder,
+            {sim_done});
+    }
+
+#ifdef MADRONA_GPU_MODE
+    auto recycle_sys = builder.addToGraph<RecycleEntitiesNode>({sim_done});
+    (void)recycle_sys;
+#endif
+
+    auto collect_observations = builder.addToGraph<ParallelForNode<Engine,
+        collectObservationsSystem,
+            Entity,
+            SimEntity,
+            AgentType,
+            RelativeAgentObservations,
+            RelativeBoxObservations,
+            RelativeRampObservations
+        >>({sim_done});
+
+
+#ifdef MADRONA_GPU_MODE
+    auto compute_visibility = builder.addToGraph<CustomParallelForNode<Engine,
+        computeVisibilitySystem, 32, 1,
+#else
+    auto compute_visibility = builder.addToGraph<ParallelForNode<Engine,
+        computeVisibilitySystem,
+#endif
+            Entity,
+            SimEntity,
+            AgentType,
+            AgentVisibilityMasks,
+            BoxVisibilityMasks,
+            RampVisibilityMasks
+        >>({sim_done});
+
+#ifdef MADRONA_GPU_MODE
+    auto lidar = builder.addToGraph<CustomParallelForNode<Engine,
+        lidarSystem, 32, 1,
+#else
+    auto lidar = builder.addToGraph<ParallelForNode<Engine,
+        lidarSystem,
+#endif
+            SimEntity,
+            Lidar
+        >>({sim_done});
+
+    auto agent_rewards = builder.addToGraph<ParallelForNode<Engine,
+        agentRewardsSystem,
+            SimEntity,
+            AgentType,
+            Reward
+        >>({compute_visibility});
+
+    auto global_positions_debug = builder.addToGraph<ParallelForNode<Engine,
+        globalPositionsDebugSystem,
+            GlobalDebugPositions
+        >>({sim_done});
+
+    (void)lidar;
+    (void)phys_cleanup_sys;
+    (void)collect_observations;
+    (void)agent_rewards;
+    (void)global_positions_debug;
+}
+
+
 inline void globalPositionsDebugSystem(Engine &ctx,
                                        GlobalDebugPositions &global_positions)
 {

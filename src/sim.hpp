@@ -64,21 +64,24 @@ enum class AgentType : uint32_t {
     Camera = 2,
 };
 
-struct DynamicObject : public madrona::Archetype<
-    Position, 
-    Rotation,
-    Scale,
-    Velocity,
-    ObjectID,
-    ResponseType,
-    madrona::phys::solver::SubstepPrevState,
-    madrona::phys::solver::PreSolvePositional,
-    madrona::phys::solver::PreSolveVelocity,
-    ExternalForce,
-    ExternalTorque,
-    madrona::phys::broadphase::LeafID,
-    OwnerTeam
-> {};
+struct PhysicsObject {
+    Position pos;
+    Rotation rot;
+    Scale scale;
+    Velocity vel;
+    ObjectID objID;
+    ResponseType respType;
+    madrona::phys::solver::SubstepPrevState substepPrevState;
+    madrona::phys::solver::PreSolvePositional preSolvePositional;
+    madrona::phys::solver::PreSolveVelocity preSolveVelocity;
+    ExternalForce extForce;
+    ExternalTorque extTorque;
+    madrona::phys::broadphase::LeafID leafID;
+};
+
+struct Obstacle : public PhysicsObject {
+    OwnerTeam ownerTeam;
+};
 
 struct Action {
     int32_t x;
@@ -154,44 +157,26 @@ struct Lidar {
 
 static_assert(sizeof(Action) == 5 * sizeof(int32_t));
 
-struct AgentInterface : public madrona::Archetype<
-    SimEntity,
-    Action,
-    Reward,
-    AgentType,
-    AgentActiveMask,
-    RelativeAgentObservations,
-    RelativeBoxObservations,
-    RelativeRampObservations,
-    AgentVisibilityMasks,
-    BoxVisibilityMasks,
-    RampVisibilityMasks,
-    Lidar
-> {};
+struct AgentInterfaces {
+    SimEntity *simEntities;
+    Action *actions;
+    Reward *rewards;
+    AgentType *agentTypes;
+    AgentActiveMask *agentActiveMasks;
+    RelativeAgentObservations *relAgentObs;
+    RelativeBoxObservations *relBoxObs;
+    RelativeRampObservations *relRampObs;
+    AgentVisibilityMasks *agentVisMasks;
+    BoxVisibilityMasks *boxVisMasks;
+    RampVisibilityMasks *rampVisMasks;
+    Lidar *lidar;
+};
 
-struct CameraAgent : public madrona::Archetype<
-    Position,
-    Rotation,
-    madrona::render::ViewSettings
-> {};
-
-struct DynAgent : public madrona::Archetype<
-    Position, 
-    Rotation,
-    Scale,
-    Velocity,
-    ObjectID,
-    ResponseType,
-    madrona::phys::solver::SubstepPrevState,
-    madrona::phys::solver::PreSolvePositional,
-    madrona::phys::solver::PreSolveVelocity,
-    ExternalForce,
-    ExternalTorque,
-    madrona::phys::broadphase::LeafID,
-    OwnerTeam,
-    GrabData,
-    madrona::render::ViewSettings
-> {};
+struct DynAgent : PhysicsObject {
+    OwnerTeam team;
+    GrabData grabData;
+    madrona::render::ViewSettings viewSettings;
+};
 
 struct Config {
     bool enableRender;
@@ -214,17 +199,18 @@ struct Sim : public madrona::WorldBase {
     Entity *obstacles;
     CountT numObstacles;
 
-    Entity hiders[3];
+    int32_t hiders[3];
     CountT numHiders;
-    Entity seekers[3];
+    int32_t seekers[3];
     CountT numSeekers;
 
-    Entity boxes[consts::maxBoxes];
+    Obstacle boxes[consts::maxBoxes];
     madrona::math::Vector2 boxSizes[consts::maxBoxes];
     float boxRotations[consts::maxBoxes];
-    Entity ramps[consts::maxRamps];
+    Obstacle ramps[consts::maxRamps];
     float rampRotations[consts::maxRamps];
-    Entity agentInterfaces[consts::maxAgents];
+
+    AgentInterface agentInterfaces;
     CountT numActiveBoxes;
     CountT numActiveRamps;
     CountT numActiveAgents;
