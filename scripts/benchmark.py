@@ -65,9 +65,17 @@ for i in range(5):
 
 start = time.time()
 
+reset_interval = 40
+reset_count = 16384
+
 for i in range(num_steps):
-    if i % 240 == 0:
+    if i % 40 == 0:
         resets[:, 0] = 1
+        # perm = torch.randperm(num_worlds)
+        # idx = perm[:reset_count]
+        #resets[idx, 0] = 1
+        # start = random.randrange(num_worlds - reset_count)
+        # resets[start:start+40, 0] = 1
 
     sim.step()
 
