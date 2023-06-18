@@ -3,30 +3,26 @@
 #include <memory>
 
 #include <madrona/python.hpp>
+#include <madrona/exec_mode.hpp>
+#include <madrona/render/mw.hpp>
 
 namespace GPUHideSeek {
 
 class Manager {
 public:
-    enum class ExecMode {
-        CPU,
-        CUDA,
-    };
-
     struct Config {
-        ExecMode execMode;
+        madrona::ExecMode execMode;
         int gpuID;
         uint32_t numWorlds;
-        uint32_t minEntitiesPerWorld;
-        uint32_t maxEntitiesPerWorld;
         uint32_t renderWidth;
         uint32_t renderHeight;
         bool autoReset;
-        bool enableRender;
+        bool enableBatchRender;
         bool debugCompile;
     };
 
-    MADRONA_IMPORT Manager(const Config &cfg);
+    MADRONA_IMPORT Manager(const Config &cfg,
+        const madrona::render::RendererBridge *viewer_bridge = nullptr);
     MADRONA_IMPORT ~Manager();
 
     MADRONA_IMPORT void step();

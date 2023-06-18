@@ -859,7 +859,7 @@ void Sim::setupTasks(TaskGraph::Builder &builder, const Config &cfg)
     auto reset_finish = clearTmp;
 #endif
 
-    if (cfg.enableRender) {
+    if (cfg.enableBatchRender || cfg.enableLiveRender) {
         render::RenderingSystem::setupTasks(builder,
             {reset_finish});
     }
@@ -951,7 +951,7 @@ Sim::Sim(Engine &ctx,
 
     curEpisodeStep = 0;
 
-    enableRender = cfg.enableRender;
+    enableRender = cfg.enableBatchRender || cfg.enableLiveRender;
     autoReset = cfg.autoReset;
 
     resetEnvironment(ctx);

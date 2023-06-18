@@ -31,6 +31,12 @@ static inline constexpr int32_t maxAgents = 6;
 
 }
 
+struct Config {
+    bool enableBatchRender;
+    bool enableLiveRender;
+    bool autoReset;
+};
+
 class Engine;
 
 struct WorldReset {
@@ -189,11 +195,6 @@ struct DynAgent : public madrona::Archetype<
     GrabData,
     madrona::render::ViewSettings
 > {};
-
-struct Config {
-    bool enableRender;
-    bool autoReset;
-};
 
 struct Sim : public madrona::WorldBase {
     static void registerTypes(madrona::ECSRegistry &registry,
