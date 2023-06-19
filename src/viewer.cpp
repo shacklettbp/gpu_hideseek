@@ -31,8 +31,8 @@ int main(int argc, char *argv[])
 
     Viewer viewer({
         .gpuID = 0,
-        .renderWidth = 1536,
-        .renderHeight = 1024,
+        .renderWidth = 2730,
+        .renderHeight = 1536,
         .numWorlds = 1,
         .maxViewsPerWorld = 6,
         .maxInstancesPerWorld = 1000,
