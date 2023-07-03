@@ -6,6 +6,7 @@
 #include <madrona/components.hpp>
 #include <madrona/physics.hpp>
 #include <madrona/render/mw.hpp>
+#include <madrona/viz/system.hpp>
 
 #include "init.hpp"
 #include "rng.hpp"
@@ -33,7 +34,7 @@ static inline constexpr int32_t maxAgents = 6;
 
 struct Config {
     bool enableBatchRender;
-    bool enableLiveRender;
+    bool enableViewer;
     bool autoReset;
 };
 
@@ -175,7 +176,8 @@ struct AgentInterface : public madrona::Archetype<
 struct CameraAgent : public madrona::Archetype<
     Position,
     Rotation,
-    madrona::render::ViewSettings
+    madrona::render::BatchRenderCamera,
+    madrona::viz::VizCamera
 > {};
 
 struct DynAgent : public madrona::Archetype<
@@ -193,7 +195,8 @@ struct DynAgent : public madrona::Archetype<
     madrona::phys::broadphase::LeafID,
     OwnerTeam,
     GrabData,
-    madrona::render::ViewSettings
+    madrona::render::BatchRenderCamera,
+    madrona::viz::VizCamera
 > {};
 
 struct Sim : public madrona::WorldBase {
@@ -235,7 +238,8 @@ struct Sim : public madrona::WorldBase {
     CountT maxEpisodeEntities;
 
     uint32_t curEpisodeSeed;
-    bool enableRender;
+    bool enableBatchRender;
+    bool enableViewer;
     bool autoReset;
 
     madrona::AtomicFloat hiderTeamReward {0};

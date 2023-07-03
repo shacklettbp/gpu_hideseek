@@ -215,10 +215,16 @@ static void generateTrainingEnvironment(Engine &ctx,
         ctx.get<Position>(agent) = pos;
         ctx.get<Rotation>(agent) = rot;
         ctx.get<Scale>(agent) = Diag3x3 { 1, 1, 1 };
-        if (ctx.data().enableRender) {
-            ctx.get<render::ViewSettings>(agent) =
-                render::RenderingSystem::setupView(ctx, 90.f, 0.001f,
-                    Vector3 { 0, 0, 0.8 }, { view_idx });
+        if (ctx.data().enableBatchRender) {
+            ctx.get<render::BatchRenderCamera>(agent) =
+                render::BatchRenderingSystem::setupView(ctx, 90.f, 0.001f,
+                    Vector3 { 0, 0, 0.8 }, view_idx);
+        }
+
+        if (ctx.data().enableViewer) {
+            ctx.get<viz::VizCamera>(agent) =
+                viz::VizRenderingSystem::setupView(ctx, 90.f, 0.001f,
+                        Vector3 { 0, 0, 0.8 }, view_idx);
         }
 
         ObjectID agent_obj_id = ObjectID { 4 };
@@ -342,10 +348,15 @@ static void singleCubeLevel(Engine &ctx, Vector3 pos, Quat rot)
     ctx.data().numObstacles = total_entities;
 
     Entity agent = makeAgent<CameraAgent>(ctx, AgentType::Camera);
-    if (ctx.data().enableRender) {
-        ctx.get<render::ViewSettings>(agent) =
-            render::RenderingSystem::setupView(ctx, 90.f, 0.001f,
-                                               up * 0.5f, { 0 });
+    if (ctx.data().enableBatchRender) {
+        ctx.get<render::BatchRenderCamera>(agent) =
+            render::BatchRenderingSystem::setupView(ctx, 90.f, 0.001f,
+                                               up * 0.5f, 0);
+    }
+    if (ctx.data().enableViewer) {
+        ctx.get<viz::VizCamera>(agent) =
+            viz::VizRenderingSystem::setupView(ctx, 90.f, 0.001f,
+                                               up * 0.5f, 0);
     }
     ctx.get<Position>(agent) = Vector3 { -5, -5, 0 };
     ctx.get<Rotation>(agent) = agent_rot;
@@ -399,10 +410,16 @@ static void level4(Engine &ctx)
     ctx.data().numObstacles = total_entities;
 
     Entity agent = makeAgent<CameraAgent>(ctx, AgentType::Camera);
-    if (ctx.data().enableRender) {
-        ctx.get<render::ViewSettings>(agent) =
-            render::RenderingSystem::setupView(ctx, 90.f, 0.001f,
-                                               up * 0.5f, { 0 });
+    if (ctx.data().enableBatchRender) {
+        ctx.get<render::BatchRenderCamera>(agent) =
+            render::BatchRenderingSystem::setupView(ctx, 90.f, 0.001f,
+                                               up * 0.5f, 0);
+    }
+
+    if (ctx.data().enableViewer) {
+        ctx.get<viz::VizCamera>(agent) =
+            viz::VizRenderingSystem::setupView(ctx, 90.f, 0.001f,
+                                               up * 0.5f, 0);
     }
 
     ctx.get<Position>(agent) = Vector3 { -7.5, -7.5, 0.5 };
@@ -453,10 +470,16 @@ static void level5(Engine &ctx)
         Quat::angleAxis(-pi_d2, {1, 0, 0});
 
     Entity agent = makeAgent<CameraAgent>(ctx, AgentType::Camera);
-    if (ctx.data().enableRender) {
-        ctx.get<render::ViewSettings>(agent) =
-            render::RenderingSystem::setupView(ctx, 90.f, 0.001f,
-                                               up * 0.5f, { 0 });
+    if (ctx.data().enableBatchRender) {
+        ctx.get<render::BatchRenderCamera>(agent) =
+            render::BatchRenderingSystem::setupView(ctx, 90.f, 0.001f,
+                                                    up * 0.5f, 0);
+    }
+
+    if (ctx.data().enableViewer) {
+        ctx.get<viz::VizCamera>(agent) =
+            viz::VizRenderingSystem::setupView(ctx, 90.f, 0.001f,
+                                                    up * 0.5f, 0);
     }
 
     ctx.get<Position>(agent) = Vector3 { 0, 0, 35 };
@@ -490,10 +513,16 @@ static void level6(Engine &ctx)
         ctx.get<Position>(agent) = pos;
         ctx.get<Rotation>(agent) = rot;
         ctx.get<Scale>(agent) = Diag3x3 { 1, 1, 1 };
-        if (ctx.data().enableRender) {
-            ctx.get<render::ViewSettings>(agent) =
-                render::RenderingSystem::setupView(ctx, 90.f, 0.001f,
-                    Vector3 { 0, 0, 0.8 }, { view_idx });
+        if (ctx.data().enableBatchRender) {
+            ctx.get<render::BatchRenderCamera>(agent) =
+                render::BatchRenderingSystem::setupView(ctx, 90.f, 0.001f,
+                    Vector3 { 0, 0, 0.8 }, view_idx);
+        }
+
+        if (ctx.data().enableViewer) {
+            ctx.get<viz::VizCamera>(agent) =
+                viz::VizRenderingSystem::setupView(ctx, 90.f, 0.001f,
+                    Vector3 { 0, 0, 0.8 }, view_idx);
         }
 
         ObjectID agent_obj_id = ObjectID { 4 };
@@ -556,10 +585,15 @@ static void level7(Engine &ctx)
     ctx.data().numObstacles = total_entities;
 
     Entity agent = makeAgent<CameraAgent>(ctx, AgentType::Camera);
-    if (ctx.data().enableRender) {
-        ctx.get<render::ViewSettings>(agent) =
-            render::RenderingSystem::setupView(ctx, 90.f, 0.001f,
-                                               up * 0.5f, { 0 });
+    if (ctx.data().enableBatchRender) {
+        ctx.get<render::BatchRenderCamera>(agent) =
+            render::BatchRenderingSystem::setupView(ctx, 90.f, 0.001f,
+                                               up * 0.5f, 0);
+    }
+    if (ctx.data().enableViewer) {
+        ctx.get<viz::VizCamera>(agent) =
+            viz::VizRenderingSystem::setupView(ctx, 90.f, 0.001f,
+                                               up * 0.5f, 0);
     }
     ctx.get<Position>(agent) = Vector3 { -5, -5, 0.5 };
     ctx.get<Rotation>(agent) = agent_rot;
@@ -605,10 +639,15 @@ static void level8(Engine &ctx)
     ctx.data().numObstacles = total_entities;
 
     Entity agent = makeAgent<CameraAgent>(ctx, AgentType::Camera);
-    if (ctx.data().enableRender) {
-        ctx.get<render::ViewSettings>(agent) =
-            render::RenderingSystem::setupView(ctx, 90.f, 0.001f,
-                                               up * 0.5f, { 0 });
+    if (ctx.data().enableBatchRender) {
+        ctx.get<render::BatchRenderCamera>(agent) =
+            render::BatchRenderingSystem::setupView(ctx, 90.f, 0.001f,
+                                                    up * 0.5f, 0);
+    }
+    if (ctx.data().enableViewer) {
+        ctx.get<viz::VizCamera>(agent) =
+            viz::VizRenderingSystem::setupView(ctx, 90.f, 0.001f,
+                                               up * 0.5f, 0);
     }
     ctx.get<Position>(agent) = Vector3 { -5, -5, 0.5 };
     ctx.get<Rotation>(agent) = agent_rot;

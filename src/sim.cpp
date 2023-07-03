@@ -14,11 +14,14 @@ constexpr inline CountT numPhysicsSubsteps = 4;
 constexpr inline CountT numPrepSteps = 96;
 constexpr inline CountT episodeLen = 240;
 
-void Sim::registerTypes(ECSRegistry &registry, const Config &)
+void Sim::registerTypes(ECSRegistry &registry,
+                        const Config &)
 {
     base::registerTypes(registry);
     phys::RigidBodyPhysicsSystem::registerTypes(registry);
-    render::RenderingSystem::registerTypes(registry);
+
+    render::BatchRenderingSystem::registerTypes(registry);
+    viz::VizRenderingSystem::registerTypes(registry);
 
     registry.registerComponent<AgentPrepCounter>();
     registry.registerComponent<Action>();
@@ -67,8 +70,12 @@ static inline void resetEnvironment(Engine &ctx)
 {
     ctx.data().curEpisodeStep = 0;
 
-    if (ctx.data().enableRender) {
-        render::RenderingSystem::reset(ctx);
+    if (ctx.data().enableBatchRender) {
+        render::BatchRenderingSystem::reset(ctx);
+    }
+
+    if (ctx.data().enableViewer) {
+        viz::VizRenderingSystem::reset(ctx);
     }
 
     phys::RigidBodyPhysicsSystem::reset(ctx);
@@ -341,7 +348,7 @@ inline void actionSystem(Engine &ctx, Action &action, SimEntity sim_e,
 
 inline void agentZeroVelSystem(Engine &,
                                Velocity &vel,
-                               render::ViewSettings &)
+                               viz::VizCamera &)
 {
     vel.linear.x = 0;
     vel.linear.y = 0;
@@ -822,7 +829,7 @@ void Sim::setupTasks(TaskGraph::Builder &builder, const Config &cfg)
         {action_sys}, numPhysicsSubsteps);
 
     auto agent_zero_vel = builder.addToGraph<ParallelForNode<Engine,
-        agentZeroVelSystem, Velocity, render::ViewSettings>>(
+        agentZeroVelSystem, Velocity, viz::VizCamera>>(
             {substep_sys});
 
     auto sim_done = agent_zero_vel;
@@ -859,8 +866,13 @@ void Sim::setupTasks(TaskGraph::Builder &builder, const Config &cfg)
     auto reset_finish = clearTmp;
 #endif
 
-    if (cfg.enableBatchRender || cfg.enableLiveRender) {
-        render::RenderingSystem::setupTasks(builder,
+    if (cfg.enableBatchRender) {
+        render::BatchRenderingSystem::setupTasks(builder,
+            {reset_finish});
+    }
+
+    if (cfg.enableViewer) {
+        viz::VizRenderingSystem::setupTasks(builder,
             {reset_finish});
     }
 
@@ -938,6 +950,14 @@ Sim::Sim(Engine &ctx,
          numPhysicsSubsteps, -9.8 * math::up, max_total_entities,
          50 * 20, 10);
 
+    if (cfg.enableViewer) {
+        viz::VizRenderingSystem::init(ctx, init.vizBridge);
+    }
+
+    if (cfg.enableBatchRender) {
+        render::BatchRenderingSystem::init(ctx, init.batchRenderBridge);
+    }
+
     obstacles =
         (Entity *)rawAlloc(sizeof(Entity) * size_t(max_total_entities));
 
@@ -951,7 +971,8 @@ Sim::Sim(Engine &ctx,
 
     curEpisodeStep = 0;
 
-    enableRender = cfg.enableBatchRender || cfg.enableLiveRender;
+    enableBatchRender = cfg.enableBatchRender;
+    enableViewer = cfg.enableViewer;
     autoReset = cfg.autoReset;
 
     resetEnvironment(ctx);
