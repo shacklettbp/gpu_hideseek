@@ -59,7 +59,8 @@ public:
                                  madrona::CountT num_hiders,
                                  madrona::CountT num_seekers);
     MGR_EXPORT void setAction(madrona::CountT agent_idx,
-                              int32_t x, int32_t y, int32_t r);
+                              int32_t x, int32_t y, int32_t r,
+                              bool g, bool l);
 
 private:
     struct Impl;

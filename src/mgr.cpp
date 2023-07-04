@@ -643,12 +643,15 @@ void Manager::triggerReset(CountT world_idx, CountT level_idx,
 }
 
 void Manager::setAction(CountT agent_idx,
-                        int32_t x, int32_t y, int32_t r)
+                        int32_t x, int32_t y, int32_t r,
+                        bool g, bool l)
 {
     Action action { 
         .x = x,
         .y = y,
         .r = r,
+        .g = (int32_t)g,
+        .l = (int32_t)l,
     };
 
     auto *action_ptr = impl_->actionsPointer + agent_idx;
