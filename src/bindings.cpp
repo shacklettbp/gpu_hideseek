@@ -30,7 +30,7 @@ NB_MODULE(gpu_hideseek_python, m) {
                             bool enable_batch_render,
                             bool debug_compile) {
             new (self) Manager(Manager::Config {
-                .execMode = exec_mode.v(),
+                .execMode = exec_mode,
                 .gpuID = (int)gpu_id,
                 .numWorlds = (uint32_t)num_worlds,
                 .renderWidth = (uint32_t)render_width,
