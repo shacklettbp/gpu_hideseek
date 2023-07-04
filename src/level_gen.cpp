@@ -619,7 +619,7 @@ static void level8(Engine &ctx)
 
     all_entities[total_entities++] =
         makeDynObject(ctx,
-                      {0, 0, 1.5},
+                      {-0.5, -0.5, 1},
                       (Quat::angleAxis(toRadians(-90), {1, 0, 0 }) *
                           Quat::angleAxis(pi, {0, 1, 0 })).normalize(),
                       5,
