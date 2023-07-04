@@ -52,6 +52,7 @@ int main(int argc, char *argv[])
         .numWorlds = num_worlds,
         .maxViewsPerWorld = 6,
         .maxInstancesPerWorld = 1000,
+        .defaultSimTickRate = 15,
         .execMode = ExecMode::CPU,
     });
 
