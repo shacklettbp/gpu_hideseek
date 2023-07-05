@@ -29,14 +29,15 @@ int main(int argc, char *argv[])
         FATAL("Failed to load render assets: %s", import_err);
     }
 
-    std::array<imp::SourceMaterial, 3> materials = {{
-        { math::Vector4{0.4f, 0.4f, 0.4f, 0.0f} },
-        { math::Vector4{1.0f, 0.1f, 0.1f, 0.0f} },
-        { math::Vector4{0.1f, 0.1f, 1.0f, 0.0f} }
+    std::array<imp::SourceMaterial, 4> materials = {{
+        { math::Vector4{0.4f, 0.4f, 0.4f, 0.0f}, -1 },
+        { math::Vector4{1.0f, 0.1f, 0.1f, 0.0f}, -1 },
+        { math::Vector4{0.1f, 0.1f, 1.0f, 0.0f}, -1 },
+        { math::Vector4{0.5f, 0.3f, 0.3f, 0.0f}, 0 }
     }};
 
     const_cast<uint32_t&>(render_assets->objects[0].meshes[0].materialIDX) = 0;
-    const_cast<uint32_t&>(render_assets->objects[1].meshes[0].materialIDX) = 0;
+    const_cast<uint32_t&>(render_assets->objects[1].meshes[0].materialIDX) = 3;
     const_cast<uint32_t&>(render_assets->objects[2].meshes[0].materialIDX) = 1;
     const_cast<uint32_t&>(render_assets->objects[3].meshes[0].materialIDX) = 0;
     const_cast<uint32_t&>(render_assets->objects[4].meshes[0].materialIDX) = 2;
@@ -55,10 +56,11 @@ int main(int argc, char *argv[])
         .execMode = ExecMode::CPU,
     });
 
-    viewer.loadObjects(render_assets->objects, materials);
+    viewer.loadObjects(render_assets->objects, materials,
+            {{ (std::filesystem::path(DATA_DIR) / "orange_grid.png").string().c_str() }});
 
     viewer.configureLighting({
-        { true, math::Vector3{1.0f, 1.0f, -1.5f}, math::Vector3{1.0f, 1.0f, 1.0f} }
+        { true, math::Vector3{1.0f, 1.0f, -0.8f}, math::Vector3{1.0f, 1.0f, 1.0f} }
     });
 
     Manager mgr({
