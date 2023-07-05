@@ -76,9 +76,9 @@ def get_keyboard_action():
 exec_mode_str = sys.argv[1]
 
 if exec_mode_str == "CUDA":
-    exec_mode = gpu_hideseek_python.ExecMode.CUDA
+    exec_mode = madrona_python.ExecMode.CUDA
 elif exec_mode_str == "CPU":
-    exec_mode = gpu_hideseek_python.ExecMode.CPU
+    exec_mode = madrona_python.ExecMode.CPU
 else:
     print("interactive.py (CUDA | CPU) [out.png]")
     sys.exit(1)
@@ -87,11 +87,9 @@ sim = gpu_hideseek_python.HideAndSeekSimulator(
         exec_mode = exec_mode,
         gpu_id = 0,
         num_worlds = 1,
-        min_entities_per_world = 100,
-        max_entities_per_world = 100,
         render_width = 1536,
         render_height = 1024,
-        enable_render = True,
+        enable_batch_render = True,
         debug_compile = False,
 )
 

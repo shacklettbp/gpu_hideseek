@@ -21,7 +21,7 @@ NB_MODULE(gpu_hideseek_python, m) {
 
     nb::class_<Manager> (m, "HideAndSeekSimulator")
         .def("__init__", [](Manager *self,
-                            madrona::ExecMode exec_mode,
+                            madrona::py::PyExecMode exec_mode,
                             int64_t gpu_id,
                             int64_t num_worlds,
                             int64_t render_width,

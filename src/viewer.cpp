@@ -16,13 +16,13 @@ int main(int argc, char *argv[])
 
     std::array<char, 1024> import_err;
     auto render_assets = imp::ImportedAssets::importFromDisk({
-        (std::filesystem::path(DATA_DIR) / "sphere.obj").c_str(),
-        (std::filesystem::path(DATA_DIR) / "plane.obj").c_str(),
-        (std::filesystem::path(DATA_DIR) / "cube_render.obj").c_str(),
-        (std::filesystem::path(DATA_DIR) / "wall_render.obj").c_str(),
-        (std::filesystem::path(DATA_DIR) / "cylinder_render.obj").c_str(),
-        (std::filesystem::path(DATA_DIR) / "ramp_render.obj").c_str(),
-        (std::filesystem::path(DATA_DIR) / "elongated_render.obj").c_str(),
+        (std::filesystem::path(DATA_DIR) / "sphere.obj").string().c_str(),
+        (std::filesystem::path(DATA_DIR) / "plane.obj").string().c_str(),
+        (std::filesystem::path(DATA_DIR) / "cube_render.obj").string().c_str(),
+        (std::filesystem::path(DATA_DIR) / "wall_render.obj").string().c_str(),
+        (std::filesystem::path(DATA_DIR) / "cylinder_render.obj").string().c_str(),
+        (std::filesystem::path(DATA_DIR) / "ramp_render.obj").string().c_str(),
+        (std::filesystem::path(DATA_DIR) / "elongated_render.obj").string().c_str(),
     }, Span<char>(import_err.data(), import_err.size()));
 
     if (!render_assets.has_value()) {
@@ -53,6 +53,7 @@ int main(int argc, char *argv[])
         .numWorlds = num_worlds,
         .maxViewsPerWorld = 6,
         .maxInstancesPerWorld = 1000,
+        .defaultSimTickRate = 15,
         .execMode = ExecMode::CPU,
     });
 
@@ -85,9 +86,47 @@ int main(int argc, char *argv[])
         int32_t x = 0;
         int32_t y = 0;
         int32_t r = 0;
+        bool g = false;
+        bool l = false;
 
         if (input.keyPressed(Key::R)) {
             mgr.triggerReset(world_idx, 1, 2, 2);
+        }
+
+        if (input.keyPressed(Key::K1)) {
+            mgr.triggerReset(world_idx, 1, 2, 2);
+        }
+
+        if (input.keyPressed(Key::K2)) {
+            mgr.triggerReset(world_idx, 2, 2, 2);
+        }
+
+        if (input.keyPressed(Key::K3)) {
+            mgr.triggerReset(world_idx, 3, 2, 2);
+        }
+
+        if (input.keyPressed(Key::K4)) {
+            mgr.triggerReset(world_idx, 4, 2, 2);
+        }
+
+        if (input.keyPressed(Key::K5)) {
+            mgr.triggerReset(world_idx, 5, 2, 2);
+        }
+
+        if (input.keyPressed(Key::K6)) {
+            mgr.triggerReset(world_idx, 6, 2, 2);
+        }
+
+        if (input.keyPressed(Key::K7)) {
+            mgr.triggerReset(world_idx, 7, 2, 2);
+        }
+
+        if (input.keyPressed(Key::K8)) {
+            mgr.triggerReset(world_idx, 8, 2, 2);
+        }
+
+        if (input.keyPressed(Key::K9)) {
+            mgr.triggerReset(world_idx, 9, 2, 2);
         }
 
         if (input.keyPressed(Key::W)) {
@@ -111,7 +150,14 @@ int main(int argc, char *argv[])
             r -= 5;
         }
 
-        mgr.setAction(world_idx * 4 + agent_idx, x, y, r);
+        if (input.keyPressed(Key::G)) {
+            g = true;
+        }
+        if (input.keyPressed(Key::L)) {
+            l = true;
+        }
+
+        mgr.setAction(world_idx * 4 + agent_idx, x, y, r, g, l);
     }, [&mgr]() {
         mgr.step();
     });
