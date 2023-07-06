@@ -48,8 +48,8 @@ int main(int argc, char *argv[])
 
     Viewer viewer({
         .gpuID = 0,
-        .renderWidth = 2730,
-        .renderHeight = 1536,
+        .renderWidth = 1920,
+        .renderHeight = 1080,
         .numWorlds = num_worlds,
         .maxViewsPerWorld = 6,
         .maxInstancesPerWorld = 1000,
@@ -61,7 +61,7 @@ int main(int argc, char *argv[])
             {{ (std::filesystem::path(DATA_DIR) / "orange_grid.png").string().c_str() }});
 
     viewer.configureLighting({
-        { true, math::Vector3{1.0f, 1.0f, -0.8f}, math::Vector3{1.0f, 1.0f, 1.0f} }
+        { true, math::Vector3{1.0f, 1.0f, -2.f}, math::Vector3{1.0f, 1.0f, 1.0f} }
     });
 
     Manager mgr({
