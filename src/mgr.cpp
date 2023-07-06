@@ -101,8 +101,8 @@ static void loadPhysicsObjects(PhysicsLoader &loader)
         .prims = Span<const SourceCollisionPrimitive>(&plane_prim, 1),
         .invMass = 0.f,
         .friction = {
-            .muS = 0.5f,
-            .muD = 0.5f,
+            .muS = 0.1f,
+            .muD = 0.1f,
         },
     };
 
@@ -130,37 +130,37 @@ static void loadPhysicsObjects(PhysicsLoader &loader)
     };
 
     { // Cube (2)
-        src_objs[2] = setupHull(0, 1.f, {
+        src_objs[2] = setupHull(0, 0.5f, {
             .muS = 0.5f,
-            .muD = 0.5f,
+            .muD = 4.f,
         });
     }
 
     { // Wall (3)
         src_objs[3] = setupHull(1, 0.f, {
             .muS = 0.5f,
-            .muD = 0.5f,
+            .muD = 2.f,
         });
     }
 
     { // Cylinder (4)
         src_objs[4] = setupHull(2, 1.f, {
-            .muS = 0.5f,
-            .muD = 0.5f,
+            .muS = 0.01f,
+            .muD = 0.01f,
         });
     }
 
     { // Ramp (5)
-        src_objs[5] = setupHull(3, 1.f, {
+        src_objs[5] = setupHull(3, 0.5f, {
             .muS = 0.5f,
-            .muD = 0.5f,
+            .muD = 4.f,
         });
     }
 
     { // Elongated Box (6)
-        src_objs[6] = setupHull(4, 1.f, {
+        src_objs[6] = setupHull(4, 0.5f, {
             .muS = 0.5f,
-            .muD = 0.5f,
+            .muD = 4.f,
         });
     }
 
