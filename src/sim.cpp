@@ -250,7 +250,7 @@ inline void movementSystem(Engine &ctx, Action &action, SimEntity sim_e,
             Vector3 ray_o = cur_pos + 0.5f * math::up;
             Vector3 ray_d = cur_rot.rotateVec(math::fwd);
             Entity front_entity = bvh.traceRay(ray_o,
-                ray_d, &hit_t, &hit_normal, 5.f);
+                ray_d, &hit_t, &hit_normal, 3.f);
 
             bool new_grab_possible = false;
             if (ai_state.numNoGrabTurnsRemaining == 0 &&
@@ -323,21 +323,25 @@ inline void movementSystem(Engine &ctx, Action &action, SimEntity sim_e,
                 });
 
                 if (front_entity != Entity::none() || num_overlaps > 1) {
-                    ai_state.numTurnStepsRemaining = 10;
-                    ai_state.numMoveStepsRemaining = 10;
+                    ai_state.numTurnStepsRemaining = 13;
+                    ai_state.numMoveStepsRemaining = 15;
                 } 
             }
         } else {
             if (ai_state.numTurnStepsRemaining > 0) {
-                f_y /= -10.f;
-                t_z = turn_discrete_action_max;
-                if (agent_type == AgentType::Seeker) {
-                    t_z *= -1.f;
+                if (ai_state.numTurnStepsRemaining > 10) {
+                    f_y = -move_discrete_action_max / 2.f;
+                } else {
+                    f_y /= -10.f;
+                    t_z = turn_discrete_action_max;
+                    if (agent_type == AgentType::Seeker) {
+                        t_z *= -1.f;
+                    }
                 }
 
                 ai_state.numTurnStepsRemaining--;
             } else if (ai_state.numMoveStepsRemaining > 0) {
-                f_x = 0;
+                //f_x = move_discrete_action_max / 10.f;
                 f_y = move_discrete_action_max;
                 t_z = 0;
 
