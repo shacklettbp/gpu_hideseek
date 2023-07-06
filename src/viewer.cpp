@@ -7,6 +7,16 @@
 using namespace madrona;
 using namespace madrona::viz;
 
+static inline math::Vector4 rgb8ToFloat(uint8_t r, uint8_t g, uint8_t b)
+{
+    return {
+        (float)r / 255.f,
+        (float)g / 255.f,
+        (float)b / 255.f,
+        0.f,
+    };
+}
+
 int main(int argc, char *argv[])
 {
     using namespace GPUHideSeek;
@@ -29,20 +39,22 @@ int main(int argc, char *argv[])
         FATAL("Failed to load render assets: %s", import_err);
     }
 
-    std::array<imp::SourceMaterial, 4> materials = {{
+    auto materials = std::to_array<imp::SourceMaterial>({
         { math::Vector4{0.4f, 0.4f, 0.4f, 0.0f}, -1 },
         { math::Vector4{1.0f, 0.1f, 0.1f, 0.0f}, -1 },
         { math::Vector4{0.1f, 0.1f, 1.0f, 0.0f}, -1 },
-        { math::Vector4{0.5f, 0.3f, 0.3f, 0.0f}, 0 }
-    }};
+        { math::Vector4{0.5f, 0.3f, 0.3f, 0.0f},  0 },
+        { rgb8ToFloat(191, 108, 10), -1 },
+        { rgb8ToFloat(12, 144, 150), -1 },
+    });
 
     const_cast<uint32_t&>(render_assets->objects[0].meshes[0].materialIDX) = 0;
     const_cast<uint32_t&>(render_assets->objects[1].meshes[0].materialIDX) = 3;
     const_cast<uint32_t&>(render_assets->objects[2].meshes[0].materialIDX) = 1;
     const_cast<uint32_t&>(render_assets->objects[3].meshes[0].materialIDX) = 0;
     const_cast<uint32_t&>(render_assets->objects[4].meshes[0].materialIDX) = 2;
-    const_cast<uint32_t&>(render_assets->objects[5].meshes[0].materialIDX) = 0;
-    const_cast<uint32_t&>(render_assets->objects[6].meshes[0].materialIDX) = 0;
+    const_cast<uint32_t&>(render_assets->objects[5].meshes[0].materialIDX) = 4;
+    const_cast<uint32_t&>(render_assets->objects[6].meshes[0].materialIDX) = 5;
 
     uint32_t num_worlds = 1;
 
@@ -58,7 +70,7 @@ int main(int argc, char *argv[])
     });
 
     viewer.loadObjects(render_assets->objects, materials,
-            {{ (std::filesystem::path(DATA_DIR) / "orange_grid.png").string().c_str() }});
+            {{ (std::filesystem::path(DATA_DIR) / "green_grid.png").string().c_str() }});
 
     viewer.configureLighting({
         { true, math::Vector3{1.0f, 1.0f, -2.f}, math::Vector3{1.0f, 1.0f, 1.0f} }
