@@ -10,7 +10,7 @@ using namespace madrona::phys;
 namespace GPUHideSeek {
 
 constexpr inline float deltaT = 0.075;
-constexpr inline CountT numPhysicsSubsteps = 4;
+constexpr inline CountT numPhysicsSubsteps = 32;
 constexpr inline CountT numPrepSteps = 96;
 constexpr inline CountT episodeLen = 240;
 
@@ -248,11 +248,6 @@ inline void actionSystem(Engine &ctx, Action &action, SimEntity sim_e,
     if (sim_e.e == Entity::none()) return;
     if (agent_type == AgentType::Camera) return;
 
-    if (agent_type == AgentType::Seeker &&
-            ctx.data().curEpisodeStep < numPrepSteps - 1) {
-        return;
-    }
-
     if (action.l == 1) {
         Vector3 cur_pos = ctx.get<Position>(sim_e.e);
         Quat cur_rot = ctx.get<Rotation>(sim_e.e);
@@ -260,7 +255,7 @@ inline void actionSystem(Engine &ctx, Action &action, SimEntity sim_e,
         auto &bvh = ctx.singleton<broadphase::BVH>();
         float hit_t;
         Vector3 hit_normal;
-        Entity lock_entity = bvh.traceRay(cur_pos - 0.5f * math::up,
+        Entity lock_entity = bvh.traceRay(cur_pos + 0.5f * math::up,
             cur_rot.rotateVec(math::fwd), &hit_t, &hit_normal, 2.5f);
 
         if (lock_entity != Entity::none()) {
@@ -299,7 +294,7 @@ inline void actionSystem(Engine &ctx, Action &action, SimEntity sim_e,
             float hit_t;
             Vector3 hit_normal;
 
-            Vector3 ray_o = cur_pos - 0.5f * math::up;
+            Vector3 ray_o = cur_pos + 0.5f * math::up;
             Vector3 ray_d = cur_rot.rotateVec(math::fwd);
 
             Entity grab_entity =
@@ -319,7 +314,7 @@ inline void actionSystem(Engine &ctx, Action &action, SimEntity sim_e,
                     Vector3 other_pos = ctx.get<Position>(grab_entity);
                     Quat other_rot = ctx.get<Rotation>(grab_entity);
 
-                    Vector3 r1 = 1.25f * math::fwd - 0.5f * math::up;
+                    Vector3 r1 = 1.25f * math::fwd + 0.5f * math::up;
 
                     Vector3 hit_pos = ray_o + ray_d * hit_t;
                     Vector3 r2 =

@@ -74,7 +74,7 @@ static void loadPhysicsObjects(PhysicsLoader &loader)
     auto imported_hulls = imp::ImportedAssets::importFromDisk({
         (std::filesystem::path(DATA_DIR) / "cube_collision.obj").string().c_str(),
         (std::filesystem::path(DATA_DIR) / "wall_collision.obj").string().c_str(),
-        (std::filesystem::path(DATA_DIR) / "cylinder_collision.obj").string().c_str(),
+        (std::filesystem::path(DATA_DIR) / "agent_collision.obj").string().c_str(),
         (std::filesystem::path(DATA_DIR) / "ramp_collision.obj").string().c_str(),
         (std::filesystem::path(DATA_DIR) / "elongated_collision.obj").string().c_str(),
     }, import_err_buffer, true);
