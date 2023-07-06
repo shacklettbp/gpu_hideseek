@@ -242,6 +242,12 @@ static void generateTrainingEnvironment(Engine &ctx,
         ctx.get<ExternalForce>(agent) = Vector3::zero();
         ctx.get<ExternalTorque>(agent) = Vector3::zero();
         ctx.get<GrabData>(agent).constraintEntity = Entity::none();
+        ctx.get<AIState>(agent) = AIState {
+            .numTurnStepsRemaining = -1,
+            .numMoveStepsRemaining = -1,
+            .numGrabTurnsRemaining = 0,
+            .numNoGrabTurnsRemaining = 0,
+        };
 
         return agent;
     };

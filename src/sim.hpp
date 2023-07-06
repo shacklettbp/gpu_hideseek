@@ -180,6 +180,13 @@ struct CameraAgent : public madrona::Archetype<
     madrona::viz::VizCamera
 > {};
 
+struct AIState {
+    int32_t numTurnStepsRemaining;
+    int32_t numMoveStepsRemaining;
+    int32_t numGrabTurnsRemaining;
+    int32_t numNoGrabTurnsRemaining;
+};
+
 struct DynAgent : public madrona::Archetype<
     Position, 
     Rotation,
@@ -196,7 +203,8 @@ struct DynAgent : public madrona::Archetype<
     OwnerTeam,
     GrabData,
     madrona::render::BatchRenderCamera,
-    madrona::viz::VizCamera
+    madrona::viz::VizCamera,
+    AIState
 > {};
 
 struct Sim : public madrona::WorldBase {

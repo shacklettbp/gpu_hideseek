@@ -40,6 +40,7 @@ void Sim::registerTypes(ECSRegistry &registry,
     registry.registerComponent<RampVisibilityMasks>();
     registry.registerComponent<Lidar>();
     registry.registerComponent<Seed>();
+    registry.registerComponent<AIState>();
 
 
     registry.registerSingleton<WorldReset>();
@@ -209,11 +210,6 @@ inline void movementSystem(Engine &ctx, Action &action, SimEntity sim_e,
 {
     if (sim_e.e == Entity::none()) return;
 
-    if (agent_type == AgentType::Seeker &&
-            ctx.data().curEpisodeStep < numPrepSteps - 1) {
-        return;
-    }
-
     constexpr CountT discrete_action_buckets = 11;
     constexpr CountT half_buckets = discrete_action_buckets / 2;
     constexpr float move_discrete_action_max = 120 * 4;
@@ -236,6 +232,120 @@ inline void movementSystem(Engine &ctx, Action &action, SimEntity sim_e,
         ctx.get<Rotation>(sim_e.e) = (delta_rot * cur_rot).normalize();
 
         return;
+    }
+
+    if (getenv("FAKE_INPUT")) {
+        auto &ai_state = ctx.get<AIState>(sim_e.e);
+        auto &grab_data = ctx.get<GrabData>(sim_e.e);
+
+        if (ai_state.numNoGrabTurnsRemaining > 0) {
+            ai_state.numNoGrabTurnsRemaining--;
+        }
+
+        if (ai_state.numTurnStepsRemaining == -1) {
+            auto &bvh = ctx.singleton<broadphase::BVH>();
+            float hit_t;
+            Vector3 hit_normal;
+
+            Vector3 ray_o = cur_pos + 0.5f * math::up;
+            Vector3 ray_d = cur_rot.rotateVec(math::fwd);
+            Entity front_entity = bvh.traceRay(ray_o,
+                ray_d, &hit_t, &hit_normal, 5.f);
+
+            bool new_grab_possible = false;
+            if (ai_state.numNoGrabTurnsRemaining == 0 &&
+                front_entity != Entity::none() &&
+                grab_data.constraintEntity == Entity::none()) {
+                auto grabbable_team = ctx.get<OwnerTeam>(front_entity);
+
+                if (grabbable_team == OwnerTeam::None) {
+                    new_grab_possible = true;
+                }
+
+                if (hit_t < 2.f && grabbable_team == OwnerTeam::None) {
+                    ai_state.numGrabTurnsRemaining = 80;
+
+                    Entity grab_entity = front_entity;
+                    Entity constraint_entity =
+                        ctx.makeEntity<ConstraintData>();
+                    grab_data.constraintEntity = constraint_entity;
+
+                    Vector3 other_pos = ctx.get<Position>(grab_entity);
+                    Quat other_rot = ctx.get<Rotation>(grab_entity);
+
+                    Vector3 r1 = 1.25f * math::fwd + 0.5f * math::up;
+
+                    Vector3 hit_pos = ray_o + ray_d * hit_t;
+                    Vector3 r2 =
+                        other_rot.inv().rotateVec(hit_pos - other_pos);
+
+                    Quat attach1 = { 1, 0, 0, 0 };
+                    Quat attach2 = (other_rot.inv() * cur_rot).normalize();
+
+                    float separation = hit_t - 1.25f;
+
+                    ctx.get<JointConstraint>(constraint_entity) =
+                        JointConstraint::setupFixed(sim_e.e, grab_entity,
+                                                    attach1, attach2,
+                                                    r1, r2, separation);
+                }
+            }
+
+            if (grab_data.constraintEntity != Entity::none()) {
+                if (ai_state.numGrabTurnsRemaining == 0) {
+                    ctx.destroyEntity(grab_data.constraintEntity);
+                    grab_data.constraintEntity = Entity::none();
+                    ai_state.numNoGrabTurnsRemaining = 20;
+                } else {
+                    f_x = 10.f;
+                    f_y = -move_discrete_action_max / 2.f;
+                    t_z = turn_discrete_action_max / 10.f;
+
+                    if (agent_type == AgentType::Seeker) {
+                        f_x *= -1.f;
+                        t_z *= -1.f;
+                    }
+
+                    ai_state.numGrabTurnsRemaining--;
+                }
+            } else if (!new_grab_possible) {
+                AABB my_bbox {
+                    .pMin = cur_pos + Vector3 {-0.6, -0.6, 0.4 },
+                    .pMax = cur_pos + Vector3 {0.6, 0.6, 0.8 },
+                };
+
+                CountT num_overlaps = 0;
+                bvh.findOverlaps(my_bbox, [&ctx, &num_overlaps](Entity other) {
+                    auto res = ctx.getSafe<AIState>(other);
+                    if (!res.valid()) {
+                        num_overlaps++;
+                    }
+                });
+
+                if (front_entity != Entity::none() || num_overlaps > 1) {
+                    ai_state.numTurnStepsRemaining = 10;
+                    ai_state.numMoveStepsRemaining = 10;
+                } 
+            }
+        } else {
+            if (ai_state.numTurnStepsRemaining > 0) {
+                f_y /= -10.f;
+                t_z = turn_discrete_action_max;
+                if (agent_type == AgentType::Seeker) {
+                    t_z *= -1.f;
+                }
+
+                ai_state.numTurnStepsRemaining--;
+            } else if (ai_state.numMoveStepsRemaining > 0) {
+                f_x = 0;
+                f_y = move_discrete_action_max;
+                t_z = 0;
+
+                ai_state.numMoveStepsRemaining--;
+            } else {
+                ai_state.numTurnStepsRemaining = -1;
+            }
+        }
     }
 
     ctx.get<ExternalForce>(sim_e.e) = cur_rot.rotateVec({ f_x, f_y, 0 });
@@ -814,14 +924,14 @@ TaskGraph::NodeID queueSortByWorld(TaskGraph::Builder &builder,
 
 void Sim::setupTasks(TaskGraph::Builder &builder, const Config &cfg)
 {
-    auto move_sys = builder.addToGraph<ParallelForNode<Engine, movementSystem,
-        Action, SimEntity, AgentType>>({});
-
     auto broadphase_setup_sys = phys::RigidBodyPhysicsSystem::setupBroadphaseTasks(builder,
-        {move_sys});
+        {});
+
+    auto move_sys = builder.addToGraph<ParallelForNode<Engine, movementSystem,
+        Action, SimEntity, AgentType>>({broadphase_setup_sys});
 
     auto action_sys = builder.addToGraph<ParallelForNode<Engine, actionSystem,
-        Action, SimEntity, AgentType>>({broadphase_setup_sys});
+        Action, SimEntity, AgentType>>({move_sys});
 
     auto substep_sys = phys::RigidBodyPhysicsSystem::setupSubstepTasks(builder,
         {action_sys}, numPhysicsSubsteps);

@@ -103,6 +103,8 @@ int main(int argc, char *argv[])
         mgr.triggerReset(i, 1, 2, 2);
     }
 
+    uint32_t steps_per_episode = 240;
+    uint32_t cur_episode_step = 0;
     viewer.loop([&mgr](CountT world_idx, CountT agent_idx,
                        const Viewer::UserInput &input) {
         using Key = Viewer::KeyboardKey;
@@ -112,6 +114,10 @@ int main(int argc, char *argv[])
         int32_t r = 0;
         bool g = false;
         bool l = false;
+
+        if (getenv("FAKE_INPUT")) {
+            return;
+        }
 
         if (input.keyPressed(Key::R)) {
             mgr.triggerReset(world_idx, 1, 2, 2);
@@ -182,7 +188,28 @@ int main(int argc, char *argv[])
         }
 
         mgr.setAction(world_idx * 4 + agent_idx, x, y, r, g, l);
-    }, [&mgr]() {
+    }, [&mgr, &cur_episode_step, steps_per_episode]() {
+        cur_episode_step++;
+
+        if (getenv("FAKE_INPUT")) {
+            if (cur_episode_step == steps_per_episode) {
+                cur_episode_step = 0;
+                mgr.triggerReset(0, 1, 2, 2);
+            }
+
+            int32_t x = 0;
+            int32_t y = 0;
+            int32_t r = 0;
+            bool g = false;
+            bool l = false;
+
+            y = 5;
+
+            for (int i = 0; i < 4; i++) {
+                mgr.setAction(i, x, y, r, g, l);
+            } 
+        }
+
         mgr.step();
     });
 }
