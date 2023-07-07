@@ -105,7 +105,7 @@ int main(int argc, char *argv[])
         mgr.triggerReset(i, 1, 2, 2);
     }
 
-    uint32_t steps_per_episode = 240;
+    uint32_t steps_per_episode = 480;
     uint32_t cur_episode_step = 0;
     viewer.loop([&mgr](CountT world_idx, CountT agent_idx,
                        const Viewer::UserInput &input) {
