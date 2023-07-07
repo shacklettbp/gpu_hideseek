@@ -28,7 +28,7 @@ for i in range(0, total_num_mosaic):
     else:
         subprocess.run(f"cp mosaic/merged_{i}.bmp /tmp/final/mosaic_{i}.bmp", shell=True)
 
-ffmpeg_cmd = f"ffmpeg -framerate 30 -t 6.0 -i /tmp/final/first.png -framerate 30 -i /tmp/final/mosaic_%d.bmp -framerate 30 -t 2.5 -i /tmp/final/mosaic_{total_num_mosaic - 1}.bmp -r 30 -filter_complex \"[0:v]loop=180:1:0[first];[2:v]loop=73:1:0[second];[first][1:v][second]concat=n=3:v=1\" -vcodec libx264 -pix_fmt yuv420p o.mp4"
+ffmpeg_cmd = f"ffmpeg -framerate 30 -t 6.0 -i /tmp/final/first.png -framerate 30 -i /tmp/final/mosaic_%d.bmp -framerate 30 -t 2.5 -i /tmp/final/mosaic_{total_num_mosaic - 1}.bmp -r 30 -filter_complex \"[0:v]loop=180:1:0[first];[2:v]loop=73:1:0[second];[first][1:v][second]concat=n=3:v=1\" -vcodec libx264 -pix_fmt yuv420p -preset veryslow -crf 13 o.mp4"
 
 
 subprocess.run(ffmpeg_cmd, shell=True)
