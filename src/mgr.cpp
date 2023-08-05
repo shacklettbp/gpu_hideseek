@@ -154,7 +154,7 @@ static void loadPhysicsObjects(PhysicsLoader &loader)
     { // Ramp (5)
         src_objs[5] = setupHull(3, 0.5f, {
             .muS = 0.5f,
-            .muD = 4.f,
+            .muD = 1.f,
         });
     }
 

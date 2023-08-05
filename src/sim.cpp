@@ -219,7 +219,7 @@ inline void movementSystem(Engine &ctx, Action &action, SimEntity sim_e,
     constexpr float move_discrete_action_max = 120 * 4;
     constexpr float move_delta_per_bucket = move_discrete_action_max / half_buckets;
 
-    constexpr float turn_discrete_action_max = 30 * 4;
+    constexpr float turn_discrete_action_max = 40 * 4;
     constexpr float turn_delta_per_bucket = turn_discrete_action_max / half_buckets;
 
     Vector3 cur_pos = ctx.get<Position>(sim_e.e);
@@ -656,7 +656,12 @@ inline void lidarSystem(Engine &ctx,
 
     if (idx < 30) {
         traceRay(idx);
+    }    for (int32_t i = 0; i < (int32_t)cfg.numWorlds; i++) {
+        triggerReset(i);
     }
+
+    step();
+
 #else
     for (int32_t i = 0; i < 30; i++) {
         traceRay(i);
@@ -883,6 +888,9 @@ void Sim::setupTasks(TaskGraphBuilder &builder, const Config &cfg)
     auto recycle_sys = builder.addToGraph<RecycleEntitiesNode>({reset_finish});
     (void)recycle_sys;
 #endif
+    
+    auto post_reset_broadphase = phys::RigidBodyPhysicsSystem::setupBroadphaseTasks(
+        builder, {reset_finish});
 
     auto collect_observations = builder.addToGraph<ParallelForNode<Engine,
         collectObservationsSystem,
@@ -893,7 +901,7 @@ void Sim::setupTasks(TaskGraphBuilder &builder, const Config &cfg)
             RelativeBoxObservations,
             RelativeRampObservations,
             AgentPrepCounter
-        >>({reset_finish});
+        >>({post_reset_broadphase});
 
 
 #ifdef MADRONA_GPU_MODE
@@ -909,7 +917,7 @@ void Sim::setupTasks(TaskGraphBuilder &builder, const Config &cfg)
             AgentVisibilityMasks,
             BoxVisibilityMasks,
             RampVisibilityMasks
-        >>({reset_finish});
+        >>({post_reset_broadphase});
 
 #ifdef MADRONA_GPU_MODE
     auto lidar = builder.addToGraph<CustomParallelForNode<Engine,
