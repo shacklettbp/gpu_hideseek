@@ -1,4 +1,4 @@
-import gpu_hideseek_python
+import gpu_hideseek
 import torch
 import sys
 import time
@@ -13,8 +13,8 @@ num_steps = int(sys.argv[2])
 entities_per_world = int(sys.argv[3])
 reset_chance = float(sys.argv[4])
 
-sim = gpu_hideseek_python.HideAndSeekSimulator(
-        exec_mode = gpu_hideseek_python.madrona.ExecMode.CUDA,
+sim = gpu_hideseek.HideAndSeekSimulator(
+        exec_mode = gpu_hideseek.madrona.ExecMode.CUDA,
         gpu_id = 0,
         num_worlds = num_worlds,
         render_width = 0,

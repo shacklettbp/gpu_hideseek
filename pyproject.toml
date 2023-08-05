@@ -1,0 +1,12 @@
+[build-system]
+requires = []
+build-backend = "madrona-py-build"
+backend-path = ["external/madrona/py"]
+
+[project]
+name = "gpu_hideseek"
+version = "0.0.1"
+
+[tool.madrona.packages.gpu_hideseek]
+ext-only = true
+ext-out-dir = "build"

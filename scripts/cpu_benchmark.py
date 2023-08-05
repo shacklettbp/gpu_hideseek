@@ -1,4 +1,4 @@
-import gpu_hideseek_python
+import gpu_hideseek
 import torch
 import sys
 import time
@@ -18,8 +18,8 @@ render_height = 64
 
 gpu_id = 0
 
-sim = gpu_hideseek_python.HideAndSeekSimulator(
-        exec_mode = gpu_hideseek_python.madrona.ExecMode.CPU,
+sim = gpu_hideseek.HideAndSeekSimulator(
+        exec_mode = gpu_hideseek.madrona.ExecMode.CPU,
         gpu_id = gpu_id,
         num_worlds = num_worlds,
         render_width = render_width,

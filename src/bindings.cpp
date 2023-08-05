@@ -17,7 +17,7 @@ namespace nb = nanobind;
 
 namespace GPUHideSeek {
 
-NB_MODULE(gpu_hideseek_python, m) {
+NB_MODULE(gpu_hideseek, m) {
     madrona::py::setupMadronaSubmodule(m);
 
     nb::class_<Manager> (m, "HideAndSeekSimulator")
