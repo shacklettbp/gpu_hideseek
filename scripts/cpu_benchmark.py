@@ -19,15 +19,13 @@ render_height = 64
 gpu_id = 0
 
 sim = gpu_hideseek_python.HideAndSeekSimulator(
-        exec_mode = gpu_hideseek_python.ExecMode.CPU,
+        exec_mode = gpu_hideseek_python.madrona.ExecMode.CPU,
         gpu_id = gpu_id,
         num_worlds = num_worlds,
-        min_entities_per_world = entities_per_world,
-        max_entities_per_world = entities_per_world,
         render_width = render_width,
         render_height = render_height,
         debug_compile = False,
-        enable_render = False
+        auto_reset = True,
 )
 
 #rgb_observations = sim.rgb_tensor().to_torch()
@@ -97,10 +95,6 @@ reset_yes = torch.ones_like(resets[:, 0], dtype=torch.int32,
 reset_rand = torch.zeros_like(resets[:, 0], dtype=torch.float32,
                               device=dev)
 
-resets[:, 0] = 1
-resets[:, 1] = 3
-resets[:, 2] = 2
-
 move_action_slice_gpu = actions_gpu[..., 0:2]
 move_action_slice = actions[..., 0:2]
 if has_gpu:
@@ -113,9 +107,6 @@ for i in range(5):
 start = time.time()
 
 for i in range(num_steps):
-    if i % 240 == 0:
-        resets[:, 0] = 1
-
     sim.step()
 
     if has_gpu:
