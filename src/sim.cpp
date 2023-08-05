@@ -656,12 +656,7 @@ inline void lidarSystem(Engine &ctx,
 
     if (idx < 30) {
         traceRay(idx);
-    }    for (int32_t i = 0; i < (int32_t)cfg.numWorlds; i++) {
-        triggerReset(i);
     }
-
-    step();
-
 #else
     for (int32_t i = 0; i < 30; i++) {
         traceRay(i);

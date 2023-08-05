@@ -1,4 +1,3 @@
-import madrona_python
 import gpu_hideseek_python
 import torch
 import sys
@@ -14,17 +13,13 @@ num_steps = int(sys.argv[2])
 entities_per_world = int(sys.argv[3])
 reset_chance = float(sys.argv[4])
 
-render_width = 30
-render_height = 1
-
 sim = gpu_hideseek_python.HideAndSeekSimulator(
-        exec_mode = gpu_hideseek_python.ExecMode.CUDA,
+        exec_mode = gpu_hideseek_python.madrona.ExecMode.CUDA,
         gpu_id = 0,
         num_worlds = num_worlds,
-        min_entities_per_world = entities_per_world,
-        max_entities_per_world = entities_per_world,
-        render_width = render_width,
-        render_height = render_height,
+        render_width = 0,
+        render_height = 0,
+        auto_reset = True,
 )
 
 actions = sim.action_tensor().to_torch()
@@ -36,9 +31,6 @@ reset_no = torch.zeros_like(resets[:, 0], dtype=torch.int32)
 reset_yes = torch.ones_like(resets[:, 0], dtype=torch.int32)
 reset_rand = torch.zeros_like(resets[:, 0], dtype=torch.float32)
 
-resets[:, 0] = 1
-resets[:, 1] = 3
-resets[:, 2] = 2
 
 #def dump_obs(dump_dir, step_idx):
 #    N = rgb_observations.shape[0]
@@ -66,9 +58,6 @@ for i in range(5):
 start = time.time()
 
 for i in range(num_steps):
-    if i % 240 == 0:
-        resets[:, 0] = 1
-
     sim.step()
 
     #torch.rand(reset_rand.shape, out=reset_rand)
