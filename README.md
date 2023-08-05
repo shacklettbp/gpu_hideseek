@@ -3,7 +3,7 @@ Hide & Seek GPU Batch Simulator
 
 This repository is a high-performance GPU batch simulator implementation of OpenAI's Hide and Seek Environment from the paper [Emergent Tool Use From Multi-Agent Autocurricula](https://openai.com/research/emergent-tool-use) (Baker et al. 2020). The batch simulator is built on the [Madrona Engine](https://madrona-engine.github.io), and is one of the primary examples used for performance analysis in the SIGGRAPH 2023 paper about the engine.
 
-**WARNING** This repository is not currently under development and does not represent best practices for using the Madrona Engine.The codebase is provided here primarily for the purposes of reproducing performance results from our SIGGRAPH paper. For a clean, well documented, 3D environment written in Madrona with similar functionality, refer to the [Madrona Escape Room](https://github.com/shacklettbp/madrona_escape_room) example project.
+**WARNING** This repository is not currently under development and does not represent best practices for using the Madrona Engine. The codebase is provided here primarily for the purposes of reproducing performance results from our SIGGRAPH paper. For a clean, well documented, 3D environment written in Madrona with similar functionality, refer to the [Madrona Escape Room](https://github.com/shacklettbp/madrona_escape_room) example project.
 
 Build and Profile
 ==============
