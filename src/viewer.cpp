@@ -190,43 +190,43 @@ int main(int argc, char *argv[])
         bool l = false;
 
         if (input.keyPressed(Key::R)) {
-            mgr.triggerReset(world_idx, 1, 2, 2);
+            mgr.triggerReset(world_idx, 1, 3, 2);
         }
 
         if (input.keyPressed(Key::K1)) {
-            mgr.triggerReset(world_idx, 1, 2, 2);
+            mgr.triggerReset(world_idx, 1, 3, 2);
         }
 
         if (input.keyPressed(Key::K2)) {
-            mgr.triggerReset(world_idx, 2, 2, 2);
+            mgr.triggerReset(world_idx, 2, 3, 2);
         }
 
         if (input.keyPressed(Key::K3)) {
-            mgr.triggerReset(world_idx, 3, 2, 2);
+            mgr.triggerReset(world_idx, 3, 3, 2);
         }
 
         if (input.keyPressed(Key::K4)) {
-            mgr.triggerReset(world_idx, 4, 2, 2);
+            mgr.triggerReset(world_idx, 4, 3, 2);
         }
 
         if (input.keyPressed(Key::K5)) {
-            mgr.triggerReset(world_idx, 5, 2, 2);
+            mgr.triggerReset(world_idx, 5, 3, 2);
         }
 
         if (input.keyPressed(Key::K6)) {
-            mgr.triggerReset(world_idx, 6, 2, 2);
+            mgr.triggerReset(world_idx, 6, 3, 2);
         }
 
         if (input.keyPressed(Key::K7)) {
-            mgr.triggerReset(world_idx, 7, 2, 2);
+            mgr.triggerReset(world_idx, 7, 3, 2);
         }
 
         if (input.keyPressed(Key::K8)) {
-            mgr.triggerReset(world_idx, 8, 2, 2);
+            mgr.triggerReset(world_idx, 8, 3, 2);
         }
 
         if (input.keyPressed(Key::K9)) {
-            mgr.triggerReset(world_idx, 9, 2, 2);
+            mgr.triggerReset(world_idx, 9, 3, 2);
         }
 
         if (input.keyPressed(Key::W)) {

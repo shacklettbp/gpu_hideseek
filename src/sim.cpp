@@ -978,11 +978,11 @@ Sim::Sim(Engine &ctx,
     autoReset = cfg.autoReset;
 
     resetEnvironment(ctx);
-    generateEnvironment(ctx, 1, 3, 3);
+    generateEnvironment(ctx, 1, 3, 2);
     ctx.singleton<WorldReset>() = {
         .resetLevel = 0,
         .numHiders = 3,
-        .numSeekers = 3,
+        .numSeekers = 2,
     };
 
     ctx.data().hiderTeamReward.store_relaxed(1.f);
