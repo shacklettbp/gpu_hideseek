@@ -92,11 +92,11 @@ int main(int argc, char *argv[])
     auto materials = std::to_array<imp::SourceMaterial>({
         { math::Vector4{0.4f, 0.4f, 0.4f, 0.0f}, -1, 0.8f, 0.2f,},
         { math::Vector4{1.0f, 0.1f, 0.1f, 0.0f}, -1, 0.8f, 0.2f,},
-        { math::Vector4{0.1f, 0.1f, 1.0f, 0.0f}, 1, 0.05f, 1.0f,},
+        { math::Vector4{0.1f, 0.1f, 1.0f, 0.0f}, 1, 0.8f, 1.0f,},
         { math::Vector4{0.5f, 0.3f, 0.3f, 0.0f},  0, 0.8f, 0.2f,},
         { rgb8ToFloat(191, 108, 10), -1, 0.8f, 0.2f },
         { rgb8ToFloat(12, 144, 150), -1, 0.8f, 0.2f },
-        { rgb8ToFloat(10, 10, 10),   -1, 0.05f, 1.0f },
+        { rgb8ToFloat(230, 230, 230),   -1, 0.8f, 1.0f },
     });
 
     const_cast<uint32_t&>(render_assets->objects[0].meshes[0].materialIDX) = 0;
