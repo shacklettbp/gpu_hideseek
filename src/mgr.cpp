@@ -3,7 +3,7 @@
 
 #include <madrona/utils.hpp>
 #include <madrona/importer.hpp>
-#include <madrona/physics_assets.hpp>
+#include <madrona/physics_loader.hpp>
 #include <madrona/tracing.hpp>
 #include <madrona/mw_cpu.hpp>
 
@@ -56,9 +56,6 @@ struct Manager::CUDAImpl : Manager::Impl {
 
 static void loadPhysicsObjects(PhysicsLoader &loader)
 {
-    using SourceCollisionObject = PhysicsLoader::SourceCollisionObject;
-    using SourceCollisionPrimitive = PhysicsLoader::SourceCollisionPrimitive;
-
     SourceCollisionPrimitive sphere_prim {
         .type = CollisionPrimitive::Type::Sphere,
         .sphere = CollisionPrimitive::Sphere {
@@ -82,6 +79,9 @@ static void loadPhysicsObjects(PhysicsLoader &loader)
     if (!imported_hulls.has_value()) {
         FATAL("%s", import_err_buffer);
     }
+
+    DynArray<imp::SourceMesh> src_convex_hulls(
+        imported_hulls->objects.size());
 
     DynArray<DynArray<SourceCollisionPrimitive>> prim_arrays(0);
     HeapArray<SourceCollisionObject> src_objs(imported_hulls->objects.size() + 2);
@@ -112,10 +112,11 @@ static void loadPhysicsObjects(PhysicsLoader &loader)
         DynArray<SourceCollisionPrimitive> prims(meshes.size());
 
         for (const imp::SourceMesh &mesh : meshes) {
+            src_convex_hulls.push_back(mesh);
             prims.push_back({
                 .type = CollisionPrimitive::Type::Hull,
                 .hullInput = {
-                    .mesh = &mesh,
+                    .hullIDX = uint32_t(src_convex_hulls.size() - 1),
                 },
             });
         }
@@ -164,35 +165,27 @@ static void loadPhysicsObjects(PhysicsLoader &loader)
         });
     }
 
-    auto phys_objs_res = loader.importRigidBodyData(
-        src_objs.data(), src_objs.size(), false);
+    StackAlloc tmp_alloc;
+    RigidBodyAssets rigid_body_assets;
+    CountT num_rigid_body_data_bytes;
+    void *rigid_body_data = RigidBodyAssets::processRigidBodyAssets(
+        src_convex_hulls,
+        src_objs,
+        false,
+        tmp_alloc,
+        &rigid_body_assets,
+        &num_rigid_body_data_bytes);
 
-    if (!phys_objs_res.has_value()) {
+    if (rigid_body_data == nullptr) {
         FATAL("Invalid collision hull input");
     }
 
-    auto &phys_objs = *phys_objs_res;
-
     // HACK:
-    phys_objs.metadatas[4].mass.invInertiaTensor.x = 0.f,
-    phys_objs.metadatas[4].mass.invInertiaTensor.y = 0.f,
+    rigid_body_assets.metadatas[4].mass.invInertiaTensor.x = 0.f,
+    rigid_body_assets.metadatas[4].mass.invInertiaTensor.y = 0.f,
 
-    loader.loadObjects(
-        phys_objs.metadatas.data(),
-        phys_objs.objectAABBs.data(),
-        phys_objs.primOffsets.data(),
-        phys_objs.primCounts.data(),
-        phys_objs.metadatas.size(),
-        phys_objs.collisionPrimitives.data(),
-        phys_objs.primitiveAABBs.data(),
-        phys_objs.collisionPrimitives.size(),
-        phys_objs.hullData.halfEdges.data(),
-        phys_objs.hullData.halfEdges.size(),
-        phys_objs.hullData.faceBaseHEs.data(),
-        phys_objs.hullData.facePlanes.data(),
-        phys_objs.hullData.facePlanes.size(),
-        phys_objs.hullData.positions.data(),
-        phys_objs.hullData.positions.size());
+    loader.loadRigidBodies(rigid_body_assets);
+    free(rigid_body_data);
 }
 
 Manager::Impl * Manager::Impl::init(
@@ -267,12 +260,10 @@ Manager::Impl * Manager::Impl::init(
             .numExportedBuffers = 16,
             .gpuID = (uint32_t)cfg.gpuID,
         }, {
-            "",
             { GPU_HIDESEEK_SRC_LIST },
             { GPU_HIDESEEK_COMPILE_FLAGS },
             cfg.debugCompile ? CompileConfig::OptMode::Debug :
                 CompileConfig::OptMode::LTO,
-            CompileConfig::Executor::TaskGraph,
         });
 
         WorldReset *world_reset_buffer = 

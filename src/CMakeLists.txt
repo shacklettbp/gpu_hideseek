@@ -29,7 +29,7 @@ target_link_libraries(gpu_hideseek_mgr PRIVATE
     madrona_python_utils
     madrona_common
     madrona_importer
-    madrona_physics_assets
+    madrona_physics_loader
 )
 
 if (TARGET madrona_mw_gpu)

@@ -51,7 +51,7 @@ int main(int argc, char *argv[])
     auto materials = std::to_array<imp::SourceMaterial>({
         { math::Vector4{0.4f, 0.4f, 0.4f, 0.0f}, -1, 0.8f, 0.2f,},
         { math::Vector4{1.0f, 0.1f, 0.1f, 0.0f}, -1, 0.8f, 0.2f,},
-        { math::Vector4{0.1f, 0.1f, 1.0f, 0.0f}, -1, 0.05f, 1.0f,},
+        { math::Vector4{0.1f, 0.1f, 1.0f, 0.0f}, 1, 0.05f, 1.0f,},
         { math::Vector4{0.5f, 0.3f, 0.3f, 0.0f},  0, 0.8f, 0.2f,},
         { rgb8ToFloat(191, 108, 10), -1, 0.8f, 0.2f },
         { rgb8ToFloat(12, 144, 150), -1, 0.8f, 0.2f },
@@ -70,6 +70,10 @@ int main(int argc, char *argv[])
 
     uint32_t num_worlds = 1;
 
+    math::Quat initial_camera_rotation =
+        (math::Quat::angleAxis(-math::pi / 2.f, math::up) *
+        math::Quat::angleAxis(-math::pi / 2.f, math::right)).normalize();
+
     Viewer viewer({
         .gpuID = 0,
         .renderWidth = 1920,
@@ -78,11 +82,18 @@ int main(int argc, char *argv[])
         .maxViewsPerWorld = 6,
         .maxInstancesPerWorld = 1000,
         .defaultSimTickRate = 15,
+        .cameraMoveSpeed = 10.f,
+        .cameraPosition = { 0, 15.f, 30 },
+        .cameraRotation = initial_camera_rotation,
         .execMode = ExecMode::CPU,
     });
 
-    viewer.loadObjects(render_assets->objects, materials,
-            {{ (std::filesystem::path(DATA_DIR) / "green_grid.png").string().c_str() }});
+    viewer.loadObjects(render_assets->objects, materials, {
+        { (std::filesystem::path(DATA_DIR) /
+           "green_grid.png").string().c_str() },
+        { (std::filesystem::path(DATA_DIR) /
+           "smile.png").string().c_str() },
+    });
 
     viewer.configureLighting({
         { true, math::Vector3{1.0f, 1.0f, -2.f}, math::Vector3{1.0f, 1.0f, 1.0f} }
@@ -184,5 +195,5 @@ int main(int argc, char *argv[])
         mgr.setAction(world_idx * 4 + agent_idx, x, y, r, g, l);
     }, [&mgr]() {
         mgr.step();
-    });
+    }, []() {});
 }

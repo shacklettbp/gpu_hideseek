@@ -799,7 +799,7 @@ inline void globalPositionsDebugSystem(Engine &ctx,
 
 #ifdef MADRONA_GPU_MODE
 template <typename ArchetypeT>
-TaskGraph::NodeID queueSortByWorld(TaskGraph::Builder &builder,
+TaskGraph::NodeID queueSortByWorld(TaskGraphBuilder &builder,
                                    Span<const TaskGraph::NodeID> deps)
 {
     auto sort_sys =
@@ -812,7 +812,7 @@ TaskGraph::NodeID queueSortByWorld(TaskGraph::Builder &builder,
 }
 #endif
 
-void Sim::setupTasks(TaskGraph::Builder &builder, const Config &cfg)
+void Sim::setupTasks(TaskGraphBuilder &builder, const Config &cfg)
 {
     auto move_sys = builder.addToGraph<ParallelForNode<Engine, movementSystem,
         Action, SimEntity, AgentType>>({});
