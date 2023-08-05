@@ -12,7 +12,7 @@ First, make sure you have all the dependencies listed [here](https://github.com/
 Next, fetch the repo (don't forget `--recursive`!):
 ```bash
 git clone --recursive https://github.com/shacklettbp/gpu_hideseek.git
-cd madrona_escape_room
+cd gpu_hideseek
 ```
 
 Next, for Linux and MacOS: Run `cmake` and then `make` to build the simulator:
