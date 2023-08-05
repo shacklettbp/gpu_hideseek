@@ -358,7 +358,13 @@ Manager::Manager(
         const madrona::viz::VizECSBridge *viz_bridge,
         const madrona::render::BatchRendererECSBridge *batch_render_bridge)
     : impl_(Impl::init(cfg, viz_bridge, batch_render_bridge))
-{}
+{
+    for (int32_t i = 0; i < (int32_t)cfg.numWorlds; i++) {
+        triggerReset(i, 1, 2, 2);
+    }
+
+    step();
+}
 
 Manager::~Manager() {
     switch (impl_->cfg.execMode) {

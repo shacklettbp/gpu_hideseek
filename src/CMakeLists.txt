@@ -23,13 +23,15 @@ add_library(gpu_hideseek_mgr SHARED
     mgr.hpp mgr.cpp
 )
 
-target_link_libraries(gpu_hideseek_mgr PRIVATE
-    gpu_hideseek_cpu_impl
-    madrona_mw_cpu
-    madrona_python_utils
-    madrona_common
-    madrona_importer
-    madrona_physics_loader
+target_link_libraries(gpu_hideseek_mgr
+    PUBLIC
+        madrona_python_utils
+    PRIVATE
+        gpu_hideseek_cpu_impl
+        madrona_mw_cpu
+        madrona_common
+        madrona_importer
+        madrona_physics_loader
 )
 
 if (TARGET madrona_mw_gpu)
@@ -71,3 +73,7 @@ if (TARGET madrona_viewer)
         -DDATA_DIR="${CMAKE_CURRENT_SOURCE_DIR}/../data/"
     )
 endif()
+
+add_executable(headless headless.cpp)
+target_link_libraries(headless gpu_hideseek_mgr)
+

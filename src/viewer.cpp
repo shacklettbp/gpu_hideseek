@@ -110,10 +110,6 @@ int main(int argc, char *argv[])
         .debugCompile = false,
     }, viewer.rendererBridge());
 
-    for (uint32_t i = 0; i < num_worlds; i++) {
-        mgr.triggerReset(i, 1, 2, 2);
-    }
-
     viewer.loop([&mgr](CountT world_idx, CountT agent_idx,
                        const Viewer::UserInput &input) {
         using Key = Viewer::KeyboardKey;
