@@ -5,6 +5,8 @@ This repository is a high-performance GPU batch simulator implementation of Open
 
 **WARNING** This repository is not currently under development and does not represent best practices for using the Madrona Engine. The codebase is provided here primarily for the purposes of reproducing performance results from our SIGGRAPH paper. For a clean, well documented, 3D environment written in Madrona with similar functionality, refer to the [Madrona Escape Room](https://github.com/shacklettbp/madrona_escape_room) example project.
 
+<img width=500 src="screenshot.png" alt="screenshot" />
+
 Build and Profile
 ==============
 First, make sure you have all the dependencies listed [here](https://github.com/shacklettbp/madrona#dependencies) (briefly, recent python and cmake, as well as Xcode or Visual Studio on MacOS or Windows respectively).
