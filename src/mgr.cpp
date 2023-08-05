@@ -360,7 +360,7 @@ Manager::Manager(
     : impl_(Impl::init(cfg, viz_bridge, batch_render_bridge))
 {
     for (int32_t i = 0; i < (int32_t)cfg.numWorlds; i++) {
-        triggerReset(i, 1, 2, 2);
+        triggerReset(i, 1, 3, 2);
     }
 
     step();

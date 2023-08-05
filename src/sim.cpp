@@ -10,7 +10,7 @@ using namespace madrona::phys;
 namespace GPUHideSeek {
 
 constexpr inline float deltaT = 1.f / 30.f;
-constexpr inline CountT numPhysicsSubsteps = 32;
+constexpr inline CountT numPhysicsSubsteps = 4;
 constexpr inline CountT numPrepSteps = 96;
 constexpr inline CountT episodeLen = 240;
 

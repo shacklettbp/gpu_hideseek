@@ -30,8 +30,24 @@ int main(int argc, char *argv[])
 {
     using namespace GPUHideSeek;
 
-    (void)argc;
-    (void)argv;
+    uint32_t num_worlds = 1;
+    if (argc >= 2) {
+        num_worlds = (uint32_t)atoi(argv[1]);
+    }
+
+    ExecMode exec_mode = ExecMode::CPU;
+    if (argc >= 3) {
+        if (!strcmp("--cpu", argv[2])) {
+            exec_mode = ExecMode::CPU;
+        } else if (!strcmp("--cuda", argv[2])) {
+            exec_mode = ExecMode::CUDA;
+        }
+    }
+
+    const char *replay_log_path = nullptr;
+    if (argc >= 4) {
+        replay_log_path = argv[3];
+    }
 
     std::array<char, 1024> import_err;
     auto render_assets = imp::ImportedAssets::importFromDisk({
@@ -68,8 +84,6 @@ int main(int argc, char *argv[])
     const_cast<uint32_t&>(render_assets->objects[5].meshes[0].materialIDX) = 4;
     const_cast<uint32_t&>(render_assets->objects[6].meshes[0].materialIDX) = 5;
 
-    uint32_t num_worlds = 1;
-
     math::Quat initial_camera_rotation =
         (math::Quat::angleAxis(-math::pi / 2.f, math::up) *
         math::Quat::angleAxis(-math::pi / 2.f, math::right)).normalize();
@@ -85,7 +99,7 @@ int main(int argc, char *argv[])
         .cameraMoveSpeed = 10.f,
         .cameraPosition = { 0, 15.f, 30 },
         .cameraRotation = initial_camera_rotation,
-        .execMode = ExecMode::CPU,
+        .execMode = exec_mode,
     });
 
     viewer.loadObjects(render_assets->objects, materials, {
@@ -100,12 +114,12 @@ int main(int argc, char *argv[])
     });
 
     Manager mgr({
-        .execMode = ExecMode::CPU,
+        .execMode = exec_mode,
         .gpuID = 0,
         .numWorlds = num_worlds,
         .renderWidth = 0,
         .renderHeight = 0,
-        .autoReset = false,
+        .autoReset = replay_log_path != nullptr,
         .enableBatchRender = false,
         .debugCompile = false,
     }, viewer.rendererBridge());
