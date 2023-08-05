@@ -225,12 +225,13 @@ inline void movementSystem(Engine &ctx, Action &action, SimEntity sim_e,
     Vector3 cur_pos = ctx.get<Position>(sim_e.e);
     Quat cur_rot = ctx.get<Rotation>(sim_e.e);
 
-    float f_x = move_delta_per_bucket * action.x;
-    float f_y = move_delta_per_bucket * action.y;
-    float t_z = turn_delta_per_bucket * action.r;
+    float f_x = move_delta_per_bucket * (action.x - 5);
+    float f_y = move_delta_per_bucket * (action.y - 5);
+    float t_z = turn_delta_per_bucket * (action.r - 5);
 
     if (agent_type == AgentType::Camera) {
-        ctx.get<Position>(sim_e.e) = cur_pos + 0.001f * cur_rot.rotateVec({f_x, f_y, 0});
+        ctx.get<Position>(sim_e.e) =
+            cur_pos + 0.001f * cur_rot.rotateVec({f_x, f_y, 0});
 
         Quat delta_rot = Quat::angleAxis(t_z * 0.001f, math::up);
         ctx.get<Rotation>(sim_e.e) = (delta_rot * cur_rot).normalize();
@@ -337,9 +338,9 @@ inline void actionSystem(Engine &ctx, Action &action, SimEntity sim_e,
 
     // "Consume" the actions. This isn't strictly necessary but
     // allows step to be called without every agent having acted
-    action.x = 0;
-    action.y = 0;
-    action.r = 0;
+    action.x = 5;
+    action.y = 5;
+    action.r = 5;
     action.g = 0;
     action.l = 0;
 }

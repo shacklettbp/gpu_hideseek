@@ -30,9 +30,9 @@ static Entity makeAgent(Engine &ctx, AgentType agent_type)
 
     // Zero out actions
     ctx.get<Action>(agent_iface) = {
-        .x = 0,
-        .y = 0,
-        .r = 0,
+        .x = 5,
+        .y = 5,
+        .r = 5,
         .g = 0,
         .l = 0,
     };
