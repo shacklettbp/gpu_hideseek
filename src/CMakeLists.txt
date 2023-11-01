@@ -75,5 +75,5 @@ if (TARGET madrona_viewer)
 endif()
 
 add_executable(headless headless.cpp)
-target_link_libraries(headless gpu_hideseek_mgr)
+target_link_libraries(headless madrona_mw_core gpu_hideseek_mgr)
 
