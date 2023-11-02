@@ -219,6 +219,8 @@ Manager::Impl * Manager::Impl::init(
     switch (cfg.execMode) {
     case ExecMode::CUDA: {
 #ifdef MADRONA_CUDA_SUPPORT
+        CUcontext cu_ctx = MWCudaExecutor::initCUDA(cfg.gpuID);
+
         EpisodeManager *episode_mgr = 
             (EpisodeManager *)cu::allocGPU(sizeof(EpisodeManager));
         REQ_CUDA(cudaMemset(episode_mgr, 0, sizeof(EpisodeManager)));
@@ -258,13 +260,12 @@ Manager::Impl * Manager::Impl::init(
             .worldDataAlignment = alignof(Sim),
             .numWorlds = cfg.numWorlds,
             .numExportedBuffers = 16,
-            .gpuID = (uint32_t)cfg.gpuID,
         }, {
             { GPU_HIDESEEK_SRC_LIST },
             { GPU_HIDESEEK_COMPILE_FLAGS },
             cfg.debugCompile ? CompileConfig::OptMode::Debug :
                 CompileConfig::OptMode::LTO,
-        });
+        }, cu_ctx);
 
         WorldReset *world_reset_buffer = 
             (WorldReset *)mwgpu_exec.getExported(0);
