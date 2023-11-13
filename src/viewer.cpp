@@ -179,6 +179,27 @@ int main(int argc, char *argv[])
         return false;
     };
 
+    auto prep_count_printer = mgr.prepCounterTensor().makePrinter();
+    auto vis_agents_printer = mgr.agentDataTensor().makePrinter();
+    auto vis_agents_mask_printer = mgr.visibleAgentsMaskTensor().makePrinter();
+    auto reward_printer = mgr.rewardTensor().makePrinter();
+
+    auto printObs = [&]() {
+        printf("Prep Counter\n");
+        prep_count_printer.print();
+        printf("Agents\n");
+        vis_agents_printer.print();
+        printf("Visible Agents Mask\n");
+        vis_agents_mask_printer.print();
+        printf("Reward\n");
+        reward_printer.print();
+        
+
+        printf("\n");
+    };
+
+
+
     viewer.loop([&](CountT world_idx, CountT agent_idx,
                        const Viewer::UserInput &input) {
         using Key = Viewer::KeyboardKey;
@@ -268,5 +289,7 @@ int main(int argc, char *argv[])
         }
 
         mgr.step();
+
+        printObs();
     }, []() {});
 }
