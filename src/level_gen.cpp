@@ -218,13 +218,13 @@ static void generateTrainingEnvironment(Engine &ctx,
         if (ctx.data().enableBatchRender) {
             ctx.get<render::BatchRenderCamera>(agent) =
                 render::BatchRenderingSystem::setupView(ctx, 90.f, 0.001f,
-                    Vector3 { 0, 0, 0.8 }, view_idx);
+                    Vector3 { 0, 0, 0.2f }, view_idx);
         }
 
         if (ctx.data().enableViewer) {
             ctx.get<viz::VizCamera>(agent) =
                 viz::VizRenderingSystem::setupView(ctx, 90.f, 0.001f,
-                        Vector3 { 0, 0, 1.5 }, view_idx);
+                        Vector3 { 0, 0, 0.2f }, view_idx);
         }
 
         ObjectID agent_obj_id = ObjectID { 4 };
@@ -251,8 +251,8 @@ static void generateTrainingEnvironment(Engine &ctx,
         while (true) {
             Vector3 pos {
                 bounds.x + rng.rand() * bounds_diff,
-                    bounds.x + rng.rand() * bounds_diff,
-                    0.f,
+                bounds.x + rng.rand() * bounds_diff,
+                1.f,
             };
 
             const auto rot = Quat::angleAxis(rng.rand() * math::pi, {0, 0, 1});
@@ -274,8 +274,8 @@ static void generateTrainingEnvironment(Engine &ctx,
         while (true) {
             Vector3 pos {
                 bounds.x + rng.rand() * bounds_diff,
-                    bounds.x + rng.rand() * bounds_diff,
-                    0.f,
+                bounds.x + rng.rand() * bounds_diff,
+                1.f,
             };
 
             const auto rot = Quat::angleAxis(rng.rand() * math::pi, {0, 0, 1});
@@ -516,13 +516,13 @@ static void level6(Engine &ctx)
         if (ctx.data().enableBatchRender) {
             ctx.get<render::BatchRenderCamera>(agent) =
                 render::BatchRenderingSystem::setupView(ctx, 90.f, 0.001f,
-                    Vector3 { 0, 0, 0.8 }, view_idx);
+                    Vector3 { 0, 0, -0.2 }, view_idx);
         }
 
         if (ctx.data().enableViewer) {
             ctx.get<viz::VizCamera>(agent) =
                 viz::VizRenderingSystem::setupView(ctx, 90.f, 0.001f,
-                    Vector3 { 0, 0, 0.8 }, view_idx);
+                    Vector3 { 0, 0, -0.2 }, view_idx);
         }
 
         ObjectID agent_obj_id = ObjectID { 4 };

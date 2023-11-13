@@ -633,7 +633,8 @@ inline void lidarSystem(Engine &ctx,
     Vector3 right = rot.rotateVec(math::right);
 
     auto traceRay = [&](int32_t idx) {
-        float theta = 2.f * math::pi * (float(idx) / float(30));
+        float theta = 2.f * math::pi * (float(idx) / float(30)) +
+            math::pi / 2.f;
         float x = cosf(theta);
         float y = sinf(theta);
 
@@ -642,7 +643,7 @@ inline void lidarSystem(Engine &ctx,
         float hit_t;
         Vector3 hit_normal;
         Entity hit_entity =
-            bvh.traceRay(pos , ray_dir, &hit_t, &hit_normal, 200.f);
+            bvh.traceRay(pos, ray_dir, &hit_t, &hit_normal, 200.f);
 
         if (hit_entity == Entity::none()) {
             lidar.depth[idx] = 0.f;
