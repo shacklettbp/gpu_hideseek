@@ -1,8 +1,7 @@
 #pragma once
 
 #include <madrona/physics.hpp>
-#include <madrona/render/mw.hpp>
-#include <madrona/viz/system.hpp>
+#include <madrona/render/ecs.hpp>
 
 namespace GPUHideSeek {
 

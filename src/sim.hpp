@@ -5,8 +5,7 @@
 #include <madrona/custom_context.hpp>
 #include <madrona/components.hpp>
 #include <madrona/physics.hpp>
-#include <madrona/render/mw.hpp>
-#include <madrona/viz/system.hpp>
+#include <madrona/render/ecs.hpp>
 
 #include "init.hpp"
 #include "rng.hpp"
