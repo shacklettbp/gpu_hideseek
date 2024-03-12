@@ -39,6 +39,13 @@ struct Manager::Impl {
         const Config &cfg,
         const viz::VizECSBridge *viz_bridge,
         const render::BatchRendererECSBridge *batch_render_bridge);
+
+
+    template <EnumType EnumT>
+    Tensor exportStateTensor(EnumT slot,
+                             Tensor::ElementType type,
+                             Span<const int64_t> dimensions) const
+
 };
 
 struct Manager::CPUImpl : Manager::Impl {
@@ -354,6 +361,26 @@ Manager::Impl * Manager::Impl::init(
     }
 }
 
+template <EnumType EnumT>
+Tensor Manager::Impl::exportStateTensor(EnumT slot,
+                                        Tensor::ElementType type,
+                                        Span<const int64_t> dimensions) const
+{
+    void *dev_ptr = nullptr;
+    Optional<int> gpu_id = Optional<int>::none();
+    if (impl_->cfg.execMode == ExecMode::CUDA) {
+#ifdef MADRONA_CUDA_SUPPORT
+        dev_ptr =
+            static_cast<CUDAImpl *>(impl_)->mwGPU.getExported((uint32_t)slot);
+        gpu_id = impl_->cfg.gpuID;
+#endif
+    } else {
+        dev_ptr = static_cast<CPUImpl *>(impl_)->cpuExec.getExported((uint32_t)slot);
+    }
+
+    return Tensor(dev_ptr, type, dimensions, gpu_id);
+}
+
 Manager::Manager(
         const Config &cfg,
         const madrona::viz::VizECSBridge *viz_bridge,
@@ -423,8 +450,9 @@ void Manager::step()
 
 Tensor Manager::resetTensor() const
 {
-    return exportStateTensor(0, Tensor::ElementType::Int32,
-                             {impl_->cfg.numWorlds, 3});
+    return impl_->exportStateTensor(ExportID::Reset,
+                                    Tensor::ElementType::Int32,
+                                    {impl_->cfg.numWorlds, 3});
 }
 
 Tensor Manager::doneTensor() const
@@ -440,13 +468,13 @@ Tensor Manager::doneTensor() const
 
 madrona::py::Tensor Manager::prepCounterTensor() const
 {
-    return exportStateTensor(2, Tensor::ElementType::Int32,
+    return exportStateTensor(ExportID::PrepCounter, Tensor::ElementType::Int32,
                              {impl_->cfg.numWorlds * consts::maxAgents, 1});
 }
 
 Tensor Manager::actionTensor() const
 {
-    return exportStateTensor(3, Tensor::ElementType::Int32,
+    return exportStateTensor(ExportID::Action, Tensor::ElementType::Int32,
                              {impl_->cfg.numWorlds * consts::maxAgents, 5});
 }
 
@@ -545,6 +573,24 @@ madrona::py::Tensor Manager::globalPositionsTensor() const
                              });
 }
 
+madrona::py::Tensor Manager::lidarTensor() const
+{
+    return exportStateTensor(14, Tensor::ElementType::Float32,
+                             {
+                                 impl_->cfg.numWorlds * consts::maxAgents,
+                                 30,
+                             });
+}
+
+madrona::py::Tensor Manager::seedTensor() const
+{
+    return exportStateTensor(15, Tensor::ElementType::Int32,
+                             {
+                                 impl_->cfg.numWorlds * consts::maxAgents,
+                                 1,
+                             });
+}
+
 Tensor Manager::depthTensor() const
 {
     void *dev_ptr = nullptr;
@@ -601,24 +647,6 @@ Tensor Manager::rgbTensor() const
                    impl_->cfg.renderWidth, 4}, gpu_id);
 }
 
-madrona::py::Tensor Manager::lidarTensor() const
-{
-    return exportStateTensor(14, Tensor::ElementType::Float32,
-                             {
-                                 impl_->cfg.numWorlds * consts::maxAgents,
-                                 30,
-                             });
-}
-
-madrona::py::Tensor Manager::seedTensor() const
-{
-    return exportStateTensor(15, Tensor::ElementType::Int32,
-                             {
-                                 impl_->cfg.numWorlds * consts::maxAgents,
-                                 1,
-                             });
-}
-
 void Manager::triggerReset(CountT world_idx, CountT level_idx,
                            CountT num_hiders, CountT num_seekers)
 {
@@ -662,25 +690,6 @@ void Manager::setAction(CountT agent_idx,
     } else {
         *action_ptr = action;
     }
-}
-
-Tensor Manager::exportStateTensor(int64_t slot,
-                                  Tensor::ElementType type,
-                                  Span<const int64_t> dimensions) const
-{
-    void *dev_ptr = nullptr;
-    Optional<int> gpu_id = Optional<int>::none();
-    if (impl_->cfg.execMode == ExecMode::CUDA) {
-#ifdef MADRONA_CUDA_SUPPORT
-        dev_ptr =
-            static_cast<CUDAImpl *>(impl_)->mwGPU.getExported(slot);
-        gpu_id = impl_->cfg.gpuID;
-#endif
-    } else {
-        dev_ptr = static_cast<CPUImpl *>(impl_)->cpuExec.getExported(slot);
-    }
-
-    return Tensor(dev_ptr, type, dimensions, gpu_id);
 }
 
 

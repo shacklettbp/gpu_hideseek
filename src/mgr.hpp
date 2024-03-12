@@ -49,10 +49,11 @@ public:
     MGR_EXPORT madrona::py::Tensor visibleBoxesMaskTensor() const;
     MGR_EXPORT madrona::py::Tensor visibleRampsMaskTensor() const;
     MGR_EXPORT madrona::py::Tensor globalPositionsTensor() const;
-    MGR_EXPORT madrona::py::Tensor depthTensor() const;
-    MGR_EXPORT madrona::py::Tensor rgbTensor() const;
     MGR_EXPORT madrona::py::Tensor lidarTensor() const;
     MGR_EXPORT madrona::py::Tensor seedTensor() const;
+
+    MGR_EXPORT madrona::py::Tensor depthTensor() const
+    MGR_EXPORT madrona::py::Tensor rgbTensor() const;
 
     MGR_EXPORT void triggerReset(madrona::CountT world_idx,
                                  madrona::CountT level_idx,

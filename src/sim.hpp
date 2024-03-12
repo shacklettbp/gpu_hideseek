@@ -31,6 +31,13 @@ static inline constexpr int32_t maxAgents = 6;
 
 }
 
+enum class ExportID : uint32_t {
+    Reset,
+    PrepCounter,
+    Action,
+    NumExports,
+};
+
 struct Config {
     bool enableBatchRender;
     bool enableViewer;

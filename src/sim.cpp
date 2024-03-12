@@ -50,9 +50,10 @@ void Sim::registerTypes(ECSRegistry &registry,
     registry.registerArchetype<CameraAgent>();
     registry.registerArchetype<DynAgent>();
 
-    registry.exportSingleton<WorldReset>(0);
-    registry.exportColumn<AgentInterface, AgentPrepCounter>(2);
-    registry.exportColumn<AgentInterface, Action>(3);
+    registry.exportSingleton<WorldReset>(ExportID::Reset);
+    registry.exportColumn<AgentInterface, AgentPrepCounter>(
+        ExportID::PrepCounter);
+    registry.exportColumn<AgentInterface, Action>(ExportID::Action);
     registry.exportColumn<AgentInterface, AgentType>(5);
     registry.exportColumn<AgentInterface, AgentActiveMask>(6);
     registry.exportColumn<AgentInterface, RelativeAgentObservations>(7);
