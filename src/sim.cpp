@@ -41,7 +41,8 @@ void Sim::registerTypes(ECSRegistry &registry,
     registry.registerComponent<RampVisibilityMasks>();
     registry.registerComponent<Lidar>();
     registry.registerComponent<Seed>();
-
+    registry.registerComponent<Reward>();
+    registry.registerComponent<Done>();
 
     registry.registerSingleton<WorldReset>();
     registry.registerSingleton<GlobalDebugPositions>();
@@ -74,6 +75,8 @@ void Sim::registerTypes(ECSRegistry &registry,
         ExportID::RampVisMasks);
     registry.exportColumn<AgentInterface, Lidar>(ExportID::Lidar);
     registry.exportColumn<AgentInterface, Seed>(ExportID::Seed);
+    registry.exportColumn<AgentInterface, Reward>(ExportID::Reward);
+    registry.exportColumn<AgentInterface, Done>(ExportID::Done);
     registry.exportSingleton<GlobalDebugPositions>(
         ExportID::GlobalDebugPositions);
 }
@@ -116,11 +119,6 @@ static inline void resetEnvironment(Engine &ctx)
     }
     ctx.data().numSeekers = 0;
 
-    for (int32_t i = 0; i < ctx.data().numActiveAgents; i++) {
-        RenderingSystem::cleanupViewingEntity(
-            ctx, ctx.data().agentInterfaces[i]);
-        ctx.destroyEntity(ctx.data().agentInterfaces[i]);
-    }
     ctx.data().numActiveAgents = 0;
 }
 
@@ -644,29 +642,26 @@ inline void rewardsVisSystem(Engine &ctx,
 }
 
 inline void outputRewardsDonesSystem(Engine &ctx,
-                                    SimEntity sim_e,
-                                    AgentType agent_type)
+                                     SimEntity sim_e,
+                                     AgentType agent_type,
+                                     Reward &reward,
+                                     Done &done)
 {
     if (sim_e.e == Entity::none()) {
         return;
     }
 
-    // FIXME: allow loc to be passed in
-    Loc l = ctx.loc(sim_e.e);
-    float *reward_out = &ctx.data().rewardBuffer[l.row];
-    uint8_t * const done_out = &ctx.data().doneBuffer[l.row];
-
     CountT cur_step = ctx.data().curEpisodeStep;
 
     if (cur_step == 0) {
-        *done_out = 0;
+        done.v = 0;
     }
 
     if (cur_step < numPrepSteps - 1) {
-        *reward_out = 0.f;
+        reward.v = 0.f;
         return;
     } else if (cur_step == episodeLen - 1) {
-        *done_out = 1;
+        done.v = 1;
     }
 
     float reward_val = ctx.data().hiderTeamReward.load_relaxed();
@@ -680,7 +675,7 @@ inline void outputRewardsDonesSystem(Engine &ctx,
         reward_val -= 10.f;
     }
 
-    *reward_out = reward_val;
+    reward.v = reward_val;
 }
 
 inline void globalPositionsDebugSystem(Engine &ctx,
@@ -789,7 +784,9 @@ void Sim::setupTasks(TaskGraphManager &taskgraph_mgr, const Config &cfg)
     auto output_rewards = builder.addToGraph<ParallelForNode<Engine,
         outputRewardsDonesSystem,
             SimEntity,
-            AgentType
+            AgentType,
+            Reward,
+            Done
         >>({rewards_vis});
 
     auto reset_sys = builder.addToGraph<ParallelForNode<Engine,
@@ -879,9 +876,7 @@ Sim::Sim(Engine &ctx,
          const Config &cfg,
          const WorldInit &init)
     : WorldBase(ctx),
-      episodeMgr(init.episodeMgr),
-      rewardBuffer(init.rewardBuffer),
-      doneBuffer(init.doneBuffer)
+      episodeMgr(init.episodeMgr)
 {
     const CountT max_total_entities = consts::maxBoxes + consts::maxRamps +
         consts::maxAgents + 30;
@@ -893,6 +888,18 @@ Sim::Sim(Engine &ctx,
 
     if (enableRender) {
         RenderingSystem::init(ctx, cfg.renderBridge);
+    }
+
+    for (CountT i = 0; i < (CountT)cfg.maxAgentsPerWorld; i++) {
+        Entity agent_iface = agentInterfaces[i] =
+            ctx.makeEntity<AgentInterface>();
+
+        if (enableRender) {
+            render::RenderingSystem::attachEntityToView(ctx,
+                    agent_iface,
+                    100.f, 0.001f,
+                    0.5f * math::up);
+        }
     }
 
     obstacles =
@@ -908,6 +915,9 @@ Sim::Sim(Engine &ctx,
     curEpisodeStep = 0;
 
     autoReset = cfg.autoReset;
+    maxAgentsPerWorld = cfg.maxAgentsPerWorld;
+
+    assert(maxAgentsPerWorld <= consts::maxAgents && maxAgentsPerWorld > 0);
 
     resetEnvironment(ctx);
     generateEnvironment(ctx, 1, 3, 2);

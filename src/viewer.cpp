@@ -144,9 +144,8 @@ int main(int argc, char *argv[])
         .execMode = exec_mode,
         .gpuID = 0,
         .numWorlds = num_worlds,
-        .renderWidth = 0,
-        .renderHeight = 0,
         .autoReset = replay_log_path != nullptr,
+        .maxAgentsPerWorld = num_views,
         .enableBatchRenderer = enable_batch_renderer,
         .extRenderAPI = wm.gpuAPIManager().backend(),
         .extRenderDev = render_gpu.device(),
@@ -302,10 +301,10 @@ int main(int argc, char *argv[])
             r -= 5;
         }
 
-        if (input.keyPressed(Key::G)) {
+        if (input.keyHit(Key::G)) {
             g = true;
         }
-        if (input.keyPressed(Key::L)) {
+        if (input.keyHit(Key::L)) {
             l = true;
         }
 

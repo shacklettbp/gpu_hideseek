@@ -20,9 +20,8 @@ public:
         madrona::ExecMode execMode;
         int gpuID;
         uint32_t numWorlds;
-        uint32_t renderWidth;
-        uint32_t renderHeight;
         bool autoReset;
+        uint32_t maxAgentsPerWorld;
         bool enableBatchRenderer;
         uint32_t batchRenderViewWidth = 64;
         uint32_t batchRenderViewHeight = 64;

@@ -27,16 +27,16 @@ NB_MODULE(gpu_hideseek, m) {
                             int64_t num_worlds,
                             bool auto_reset,
                             bool enable_batch_render,
-                            int64_t render_width,
-                            int64_t render_height) {
+                            int64_t batch_render_width,
+                            int64_t batch_render_height) {
             new (self) Manager(Manager::Config {
                 .execMode = exec_mode,
                 .gpuID = (int)gpu_id,
                 .numWorlds = (uint32_t)num_worlds,
-                .renderWidth = (uint32_t)render_width,
-                .renderHeight = (uint32_t)render_height,
                 .autoReset = auto_reset,
                 .enableBatchRenderer = enable_batch_render,
+                .batchRenderViewWidth = (uint32_t)batch_render_width,
+                .batchRenderViewHeight = (uint32_t)batch_render_height,
             });
         }, nb::arg("exec_mode"),
            nb::arg("gpu_id"),

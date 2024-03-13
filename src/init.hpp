@@ -11,8 +11,6 @@ struct EpisodeManager {
 
 struct WorldInit {
     EpisodeManager *episodeMgr;
-    float *rewardBuffer;
-    uint8_t *doneBuffer;
     uint32_t minEntitiesPerWorld;
     uint32_t maxEntitiesPerWorld;
 };

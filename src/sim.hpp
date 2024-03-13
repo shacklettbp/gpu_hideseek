@@ -45,6 +45,8 @@ enum class ExportID : uint32_t {
     RampVisMasks,
     Lidar,
     Seed,
+    Reward,
+    Done,
     GlobalDebugPositions,
     NumExports,
 };
@@ -67,6 +69,7 @@ enum class SimObject : uint32_t {
 
 struct Config {
     bool autoReset;
+    uint32_t maxAgentsPerWorld;
     madrona::phys::ObjectManager *rigidBodyObjMgr;
     const madrona::render::RenderECSBridge *renderBridge;
 };
@@ -188,6 +191,14 @@ struct Seed {
     int32_t seed;
 };
 
+struct Reward {
+    float v;
+};
+
+struct Done {
+    int32_t v;
+};
+
 static_assert(sizeof(Action) == 5 * sizeof(int32_t));
 
 struct AgentInterface : public madrona::Archetype<
@@ -206,6 +217,8 @@ struct AgentInterface : public madrona::Archetype<
     RampVisibilityMasks,
     Lidar,
     Seed,
+    Reward,
+    Done,
     madrona::render::RenderCamera
 > {};
 
@@ -239,9 +252,9 @@ struct Sim : public madrona::WorldBase {
         const WorldInit &init);
 
     EpisodeManager *episodeMgr;
-    float *rewardBuffer;
-    uint8_t *doneBuffer;
     RNG rng;
+
+    Entity agentInterfaces[consts::maxAgents];
 
     Entity hiders[3];
     int32_t numHiders;
@@ -255,7 +268,6 @@ struct Sim : public madrona::WorldBase {
     float boxRotations[consts::maxBoxes];
     Entity ramps[consts::maxRamps];
     float rampRotations[consts::maxRamps];
-    Entity agentInterfaces[consts::maxAgents];
     CountT numActiveBoxes;
     CountT numActiveRamps;
     CountT numActiveAgents;
@@ -267,6 +279,7 @@ struct Sim : public madrona::WorldBase {
     uint32_t curEpisodeSeed;
     bool enableRender;
     bool autoReset;
+    uint32_t maxAgentsPerWorld;
 
     madrona::AtomicFloat hiderTeamReward {0};
 };

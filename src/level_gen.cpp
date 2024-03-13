@@ -9,25 +9,16 @@ using namespace madrona;
 using namespace madrona::math;
 using namespace madrona::phys;
 
-template <typename T>
 static Entity makeAgent(Engine &ctx, AgentType agent_type)
 {
     Entity agent_iface =
-        ctx.data().agentInterfaces[ctx.data().numActiveAgents++] =
-            ctx.makeEntity<AgentInterface>();
-
-    if (ctx.data().enableRender) {
-        render::RenderingSystem::attachEntityToView(ctx,
-                agent_iface,
-                100.f, 0.001f,
-                0.5f * math::up);
-    }
-
-    Entity agent = ctx.makeRenderableEntity<T>();
-    ctx.get<SimEntity>(agent_iface).e = agent;
-    ctx.get<AgentActiveMask>(agent_iface).mask = 1.f;
-
+        ctx.data().agentInterfaces[ctx.data().numActiveAgents++];
     ctx.get<AgentType>(agent_iface) = agent_type;
+
+    Entity agent = ctx.makeRenderableEntity<DynAgent>();
+    ctx.get<SimEntity>(agent_iface).e = agent;
+
+    ctx.get<AgentActiveMask>(agent_iface).mask = 1.f;
 
     if (agent_type == AgentType::Seeker) {
         ctx.data().seekers[ctx.data().numSeekers++] = agent;
@@ -217,9 +208,8 @@ static void generateTrainingEnvironment(Engine &ctx,
     }
     ctx.data().numActiveRamps = num_ramps;
 
-    auto makeDynAgent = [&](Vector3 pos, Quat rot, bool is_hider) {
-        Entity agent = makeAgent<DynAgent>(ctx,
-            is_hider ? AgentType::Hider : AgentType::Seeker);
+    auto makeDynAgent = [&](Vector3 pos, Quat rot, AgentType agent_type) {
+        Entity agent = makeAgent(ctx, agent_type);
         ctx.get<Position>(agent) = pos;
         ctx.get<Rotation>(agent) = rot;
         ctx.get<Scale>(agent) = Diag3x3 { 1, 1, 1 };
@@ -257,7 +247,7 @@ static void generateTrainingEnvironment(Engine &ctx,
             AABB aabb = obj_mgr.rigidBodyAABBs[(uint32_t)SimObject::Agent];
             aabb = aabb.applyTRS(pos, rot, scale);
             if (checkOverlap(aabb) || rejections == max_rejections) {
-                makeDynAgent(pos, rot, true);
+                makeDynAgent(pos, rot, AgentType::Hider);
                 break;
             }
 
@@ -281,7 +271,7 @@ static void generateTrainingEnvironment(Engine &ctx,
             aabb = aabb.applyTRS(pos, rot, scale);
 
             if (checkOverlap(aabb) || rejections == max_rejections) {
-                makeDynAgent(pos, rot, false);
+                makeDynAgent(pos, rot, AgentType::Seeker);
                 break;
             }
 
@@ -323,6 +313,15 @@ void generateEnvironment(Engine &ctx,
         generateTrainingEnvironment(ctx, num_hiders, num_seekers);
     } else {
         generateDebugEnvironment(ctx, level_id);
+    }
+
+    for (CountT i = (CountT)ctx.data().numActiveAgents;
+         i < ctx.data().maxAgentsPerWorld;
+         i++) {
+        Entity agent_iface = ctx.data().agentInterfaces[i];
+
+        ctx.get<SimEntity>(agent_iface).e = Entity::none();
+        ctx.get<AgentActiveMask>(agent_iface).mask = 0.f;
     }
 }
 
@@ -447,9 +446,8 @@ static void level6(Engine &ctx)
             ctx, {0, -5, 1}, Quat::angleAxis(0, {1, 0, 0}), SimObject::Cube,
             ResponseType::Dynamic, OwnerTeam::None, {1.f, 1.f, 1.f} );
 
-    auto makeDynAgent = [&](Vector3 pos, Quat rot, bool is_hider) {
-        Entity agent = makeAgent<DynAgent>(ctx,
-            is_hider ? AgentType::Hider : AgentType::Seeker);
+    auto makeDynAgent = [&](Vector3 pos, Quat rot, AgentType agent_type) {
+        Entity agent = makeAgent(ctx, agent_type);
         ctx.get<Position>(agent) = pos;
         ctx.get<Rotation>(agent) = rot;
         ctx.get<Scale>(agent) = Diag3x3 { 1, 1, 1 };
@@ -473,10 +471,10 @@ static void level6(Engine &ctx)
     };
 
     makeDynAgent({ -15, -15, 1.5 },
-        Quat::angleAxis(toRadians(-45), {0, 0, 1}), true);
+        Quat::angleAxis(toRadians(-45), {0, 0, 1}), AgentType::Hider);
 
     makeDynAgent({ -15, -10, 1.5 },
-        Quat::angleAxis(toRadians(45), {0, 0, 1}), false);
+        Quat::angleAxis(toRadians(45), {0, 0, 1}), AgentType::Seeker);
 
     ctx.data().numObstacles = num_entities;
 }
