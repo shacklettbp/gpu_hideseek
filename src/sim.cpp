@@ -750,10 +750,8 @@ TaskGraph::NodeID queueSortByWorld(TaskGraphBuilder &builder,
 }
 #endif
 
-void Sim::setupTasks(TaskGraphManager &taskgraph_mgr, const Config &cfg)
+static TaskGraphNodeID processActionsAndPhysicsTasks(TaskGraphBuilder &builder)
 {
-    auto &builder = taskgraph_mgr.init(TaskGraphID::Step);
-
     auto move_sys = builder.addToGraph<ParallelForNode<Engine, movementSystem,
         Action, SimEntity, AgentType>>({});
 
@@ -775,13 +773,19 @@ void Sim::setupTasks(TaskGraphManager &taskgraph_mgr, const Config &cfg)
     sim_done = phys::RigidBodyPhysicsSystem::setupCleanupTasks(
         builder, {sim_done});
 
+    return sim_done;
+}
+
+static TaskGraphNodeID rewardsAndDonesTasks(TaskGraphBuilder &builder,
+                                            Span<const TaskGraphNodeID> deps)
+{
     auto rewards_vis = builder.addToGraph<ParallelForNode<Engine,
         rewardsVisSystem,
             SimEntity,
             AgentType
-        >>({sim_done});
+        >>(deps);
 
-    auto output_rewards = builder.addToGraph<ParallelForNode<Engine,
+    auto output_rewards_dones = builder.addToGraph<ParallelForNode<Engine,
         outputRewardsDonesSystem,
             SimEntity,
             AgentType,
@@ -789,8 +793,14 @@ void Sim::setupTasks(TaskGraphManager &taskgraph_mgr, const Config &cfg)
             Done
         >>({rewards_vis});
 
+    return output_rewards_dones;
+}
+
+static TaskGraphNodeID resetTasks(TaskGraphBuilder &builder,
+                                  Span<const TaskGraphNodeID> deps)
+{
     auto reset_sys = builder.addToGraph<ParallelForNode<Engine,
-        resetSystem, WorldReset>>({output_rewards});
+        resetSystem, WorldReset>>(deps);
 
     auto clear_tmp = builder.addToGraph<ResetTmpAllocNode>({reset_sys});
 
@@ -813,6 +823,13 @@ void Sim::setupTasks(TaskGraphManager &taskgraph_mgr, const Config &cfg)
     auto post_reset_broadphase = phys::RigidBodyPhysicsSystem::setupBroadphaseTasks(
         builder, {reset_finish});
 
+    return post_reset_broadphase;
+}
+
+static void observationsTasks(const Config &cfg,
+                              TaskGraphBuilder &builder,
+                              Span<const TaskGraphNodeID> deps)
+{
     auto collect_observations = builder.addToGraph<ParallelForNode<Engine,
         collectObservationsSystem,
             Entity,
@@ -821,8 +838,7 @@ void Sim::setupTasks(TaskGraphManager &taskgraph_mgr, const Config &cfg)
             RelativeBoxObservations,
             RelativeRampObservations,
             AgentPrepCounter
-        >>({post_reset_broadphase});
-
+        >>(deps);
 
 #ifdef MADRONA_GPU_MODE
     auto compute_visibility = builder.addToGraph<CustomParallelForNode<Engine,
@@ -837,7 +853,7 @@ void Sim::setupTasks(TaskGraphManager &taskgraph_mgr, const Config &cfg)
             AgentVisibilityMasks,
             BoxVisibilityMasks,
             RampVisibilityMasks
-        >>({post_reset_broadphase});
+        >>(deps);
 
 #ifdef MADRONA_GPU_MODE
     auto lidar = builder.addToGraph<CustomParallelForNode<Engine,
@@ -848,12 +864,12 @@ void Sim::setupTasks(TaskGraphManager &taskgraph_mgr, const Config &cfg)
 #endif
             SimEntity,
             Lidar
-        >>({reset_finish});
+        >>(deps);
 
     auto global_positions_debug = builder.addToGraph<ParallelForNode<Engine,
         globalPositionsDebugSystem,
             GlobalDebugPositions
-        >>({reset_finish});
+        >>(deps);
 
     if (cfg.renderBridge) {
         auto update_camera = builder.addToGraph<ParallelForNode<Engine,
@@ -861,7 +877,7 @@ void Sim::setupTasks(TaskGraphManager &taskgraph_mgr, const Config &cfg)
                 Position,
                 Rotation,
                 SimEntity
-            >>({reset_finish});
+            >>(deps);
 
         RenderingSystem::setupTasks(builder, {update_camera});
     }
@@ -870,6 +886,17 @@ void Sim::setupTasks(TaskGraphManager &taskgraph_mgr, const Config &cfg)
     (void)compute_visibility;
     (void)collect_observations;
     (void)global_positions_debug;
+}
+
+
+void Sim::setupTasks(TaskGraphManager &taskgraph_mgr, const Config &cfg)
+{
+    auto &builder = taskgraph_mgr.init(TaskGraphID::Step);
+
+    auto sim_done = processActionsAndPhysicsTasks(builder);
+    auto rewards_and_dones = rewardsAndDonesTasks(builder, {sim_done});
+    auto resets = resetTasks(builder, {rewards_and_dones});
+    observationsTasks(cfg, builder, {resets});
 }
 
 Sim::Sim(Engine &ctx,
