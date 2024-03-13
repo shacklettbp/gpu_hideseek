@@ -405,10 +405,10 @@ Manager::Impl * Manager::Impl::init(const Config &cfg)
             TaskGraphID::Step);
 
         WorldReset *world_reset_buffer = 
-            (WorldReset *)mwgpu_exec.getExported(0);
+            (WorldReset *)mwgpu_exec.getExported((uint32_t)ExportID::Reset);
 
         Action *agent_actions_buffer = 
-            (Action *)mwgpu_exec.getExported(3);
+            (Action *)mwgpu_exec.getExported((uint32_t)ExportID::Action);
 
         HostEventLogging(HostEvent::initEnd);
         return new CUDAImpl {
@@ -480,10 +480,10 @@ Manager::Impl * Manager::Impl::init(const Config &cfg)
         };
 
         WorldReset *world_reset_buffer =
-            (WorldReset *)cpu_exec.getExported(0);
+            (WorldReset *)cpu_exec.getExported((uint32_t)ExportID::Reset);
 
         Action *agent_actions_buffer = 
-            (Action *)cpu_exec.getExported(3);
+            (Action *)cpu_exec.getExported((uint32_t)ExportID::Action);
 
         auto cpu_impl = new CPUImpl {
             { 

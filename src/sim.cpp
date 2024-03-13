@@ -185,7 +185,9 @@ inline void movementSystem(Engine &ctx, Action &action, SimEntity sim_e,
     ctx.get<ExternalTorque>(sim_e.e) = Vector3 { 0, 0, t_z };
 }
 
-inline void actionSystem(Engine &ctx, Action &action, SimEntity sim_e,
+inline void actionSystem(Engine &ctx,
+                         Action &action,
+                         SimEntity sim_e,
                          AgentType agent_type)
 {
     if (sim_e.e == Entity::none()) return;
