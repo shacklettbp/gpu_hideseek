@@ -35,13 +35,29 @@ enum class ExportID : uint32_t {
     Reset,
     PrepCounter,
     Action,
+    AgentType,
+    AgentMask,
+    AgentObsData,
+    BoxObsData,
+    RampObsData,
+    AgentVisMasks,
+    BoxVisMasks,
+    RampVisMasks,
+    Lidar,
+    Seed,
+    GlobalDebugPositions,
     NumExports,
 };
 
+enum class TaskGraphID : uint32_t {
+    Step,
+    NumTaskGraphs,
+};
+
 struct Config {
-    bool enableBatchRender;
-    bool enableViewer;
     bool autoReset;
+    const madrona::render::RenderECSBridge *renderBridge;
+    const madrona::phys::ObjectManager *rigidBodyObjMgr;
 };
 
 class Engine;
@@ -176,14 +192,13 @@ struct AgentInterface : public madrona::Archetype<
     BoxVisibilityMasks,
     RampVisibilityMasks,
     Lidar,
-    Seed
+    Seed,
+    madrona::render::RenderCamera
 > {};
 
 struct CameraAgent : public madrona::Archetype<
     Position,
-    Rotation,
-    madrona::render::BatchRenderCamera,
-    madrona::viz::VizCamera
+    Rotation
 > {};
 
 struct DynAgent : public madrona::Archetype<
@@ -201,15 +216,14 @@ struct DynAgent : public madrona::Archetype<
     madrona::phys::broadphase::LeafID,
     OwnerTeam,
     GrabData,
-    madrona::render::BatchRenderCamera,
-    madrona::viz::VizCamera
+    madrona::render::Renderable
 > {};
 
 struct Sim : public madrona::WorldBase {
     static void registerTypes(madrona::ECSRegistry &registry,
                               const Config &cfg);
 
-    static void setupTasks(madrona::TaskGraphBuilder &builder,
+    static void setupTasks(madrona::TaskGraphManager &taskgraph_mgr,
                            const Config &cfg);
 
     Sim(Engine &ctx,
@@ -221,14 +235,13 @@ struct Sim : public madrona::WorldBase {
     uint8_t *doneBuffer;
     RNG rng;
 
-    Entity *obstacles;
-    CountT numObstacles;
-
     Entity hiders[3];
-    CountT numHiders;
+    int32_t numHiders;
     Entity seekers[3];
-    CountT numSeekers;
+    int32_t numSeekers;
 
+    Entity *obstacles;
+    int32_t numObstacles;
     Entity boxes[consts::maxBoxes];
     madrona::math::Vector2 boxSizes[consts::maxBoxes];
     float boxRotations[consts::maxBoxes];
@@ -244,8 +257,7 @@ struct Sim : public madrona::WorldBase {
     CountT maxEpisodeEntities;
 
     uint32_t curEpisodeSeed;
-    bool enableBatchRender;
-    bool enableViewer;
+    bool enableRender;
     bool autoReset;
 
     madrona::AtomicFloat hiderTeamReward {0};
@@ -253,6 +265,14 @@ struct Sim : public madrona::WorldBase {
 
 class Engine : public ::madrona::CustomContext<Engine, Sim> {
     using CustomContext::CustomContext;
+
+    // These are convenience helpers for creating renderable
+    // entities when rendering isn't necessarily enabled
+    template <typename ArchetypeT>
+    inline madrona::Entity makeRenderableEntity();
+    inline void destroyRenderableEntity(Entity e);
 };
 
 }
+
+#include "sim.inl"

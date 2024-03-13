@@ -23,14 +23,15 @@ public:
         uint32_t renderWidth;
         uint32_t renderHeight;
         bool autoReset;
-        bool enableBatchRender;
+        bool enableBatchRenderer;
+        uint32_t batchRenderViewWidth = 64;
+        uint32_t batchRenderViewHeight = 64;
+        madrona::render::APIBackend *extRenderAPI = nullptr;
+        madrona::render::GPUDevice *extRenderDev = nullptr;
         bool debugCompile;
     };
 
-    MGR_EXPORT Manager(const Config &cfg,
-        const madrona::viz::VizECSBridge *viz_bridge = nullptr,
-        const madrona::render::BatchRendererECSBridge *batch_render_bridge =
-            nullptr);
+    MGR_EXPORT Manager(const Config &cfg);
     MGR_EXPORT ~Manager();
 
     MGR_EXPORT void step();

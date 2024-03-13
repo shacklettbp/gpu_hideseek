@@ -7,6 +7,8 @@ using namespace madrona;
 using namespace madrona::math;
 using namespace madrona::phys;
 
+namespace RenderingSystem = madrona::render::RenderingSystem;
+
 namespace GPUHideSeek {
 
 constexpr inline float deltaT = 1.f / 30.f;
@@ -20,8 +22,7 @@ void Sim::registerTypes(ECSRegistry &registry,
     base::registerTypes(registry);
     phys::RigidBodyPhysicsSystem::registerTypes(registry);
 
-    render::BatchRenderingSystem::registerTypes(registry);
-    viz::VizRenderingSystem::registerTypes(registry);
+    RenderingSystem::registerTypes(registry);
 
     registry.registerComponent<AgentPrepCounter>();
     registry.registerComponent<Action>();
@@ -50,41 +51,44 @@ void Sim::registerTypes(ECSRegistry &registry,
     registry.registerArchetype<CameraAgent>();
     registry.registerArchetype<DynAgent>();
 
-    registry.exportSingleton<WorldReset>(ExportID::Reset);
+    registry.exportSingleton<WorldReset>(
+        ExportID::Reset);
     registry.exportColumn<AgentInterface, AgentPrepCounter>(
         ExportID::PrepCounter);
-    registry.exportColumn<AgentInterface, Action>(ExportID::Action);
-    registry.exportColumn<AgentInterface, AgentType>(5);
-    registry.exportColumn<AgentInterface, AgentActiveMask>(6);
-    registry.exportColumn<AgentInterface, RelativeAgentObservations>(7);
-    registry.exportColumn<AgentInterface, RelativeBoxObservations>(8);
-    registry.exportColumn<AgentInterface, RelativeRampObservations>(9);
-    registry.exportColumn<AgentInterface, AgentVisibilityMasks>(10);
-    registry.exportColumn<AgentInterface, BoxVisibilityMasks>(11);
-    registry.exportColumn<AgentInterface, RampVisibilityMasks>(12);
-    registry.exportColumn<AgentInterface, Lidar>(14);
-    registry.exportColumn<AgentInterface, Seed>(15);
-    registry.exportSingleton<GlobalDebugPositions>(13);
+    registry.exportColumn<AgentInterface, Action>(
+        ExportID::Action);
+    registry.exportColumn<AgentInterface, AgentType>(
+        ExportID::AgentType);
+    registry.exportColumn<AgentInterface, AgentActiveMask>(
+        ExportID::AgentMask);
+    registry.exportColumn<AgentInterface, RelativeAgentObservations>(
+        ExportID::AgentObsData);
+    registry.exportColumn<AgentInterface, RelativeBoxObservations>(
+        ExportID::BoxObsData);
+    registry.exportColumn<AgentInterface, RelativeRampObservations>(
+        ExportID::RampObsData);
+    registry.exportColumn<AgentInterface, AgentVisibilityMasks>(
+        ExportID::AgentVisMasks);
+    registry.exportColumn<AgentInterface, BoxVisibilityMasks>(
+        ExportID::BoxVisMasks);
+    registry.exportColumn<AgentInterface, RampVisibilityMasks>(
+        ExportID::RampVisMasks);
+    registry.exportColumn<AgentInterface, Lidar>(ExportID::Lidar);
+    registry.exportColumn<AgentInterface, Seed>(ExportID::Seed);
+    registry.exportSingleton<GlobalDebugPositions>(
+        ExportID::GlobalDebugPositions);
 }
 
 static inline void resetEnvironment(Engine &ctx)
 {
     ctx.data().curEpisodeStep = 0;
 
-    if (ctx.data().enableBatchRender) {
-        render::BatchRenderingSystem::reset(ctx);
-    }
-
-    if (ctx.data().enableViewer) {
-        viz::VizRenderingSystem::reset(ctx);
-    }
-
     phys::RigidBodyPhysicsSystem::reset(ctx);
 
     Entity *all_entities = ctx.data().obstacles;
     for (CountT i = 0; i < ctx.data().numObstacles; i++) {
         Entity e = all_entities[i];
-        ctx.destroyEntity(e);
+        ctx.destroyRenderableEntity(e);
     }
     ctx.data().numObstacles = 0;
     ctx.data().numActiveBoxes = 0;
@@ -100,7 +104,7 @@ static inline void resetEnvironment(Engine &ctx)
             }
         }
 
-        ctx.destroyEntity(e);
+        ctx.destroyRenderableEntity(e);
     };
 
     for (CountT i = 0; i < ctx.data().numHiders; i++) {
@@ -142,68 +146,6 @@ inline void resetSystem(Engine &ctx, WorldReset &reset)
 
     ctx.data().hiderTeamReward.store_relaxed(1.f);
 }
-
-#if 0
-inline void sortDebugSystem(Engine &ctx, WorldReset &)
-{
-    if (ctx.worldID().idx != 0) {
-        return;
-    }
-
-    auto state_mgr = mwGPU::getStateManager();
-
-    {
-        int32_t num_rows = state_mgr->numArchetypeRows(
-            TypeTracker::typeID<AgentInterface>());
-        
-        printf("AgentInterface num rows: %u %d\n",
-               TypeTracker::typeID<AgentInterface>(),
-               num_rows);
-
-        auto col = (WorldID *)state_mgr->getArchetypeComponent(
-            TypeTracker::typeID<AgentInterface>(),
-            TypeTracker::typeID<WorldID>());
-
-        for (int i = 0; i < num_rows; i++) {
-            printf("%d\n", col[i].idx);
-        }
-    }
-
-    {
-        int32_t num_rows = state_mgr->numArchetypeRows(
-            TypeTracker::typeID<CameraAgent>());
-        
-        printf("CameraAgent num rows: %u %d\n",
-               TypeTracker::typeID<CameraAgent>(),
-               num_rows);
-
-        auto col = (WorldID *)state_mgr->getArchetypeComponent(
-            TypeTracker::typeID<CameraAgent>(),
-            TypeTracker::typeID<WorldID>());
-
-        for (int i = 0; i < num_rows; i++) {
-            printf("%d\n", col[i].idx);
-        }
-    }
-
-    {
-        int32_t num_rows = state_mgr->numArchetypeRows(
-            TypeTracker::typeID<DynAgent>());
-        
-        printf("DynAgent num rows: %u %d\n",
-               TypeTracker::typeID<DynAgent>(),
-               num_rows);
-
-        auto col = (WorldID *)state_mgr->getArchetypeComponent(
-            TypeTracker::typeID<DynAgent>(),
-            TypeTracker::typeID<WorldID>());
-
-        for (int i = 0; i < num_rows; i++) {
-            printf("%d\n", col[i].idx);
-        }
-    }
-}
-#endif
 
 inline void movementSystem(Engine &ctx, Action &action, SimEntity sim_e,
                                  AgentType agent_type)
@@ -815,8 +757,10 @@ TaskGraph::NodeID queueSortByWorld(TaskGraphBuilder &builder,
 }
 #endif
 
-void Sim::setupTasks(TaskGraphBuilder &builder, const Config &cfg)
+void Sim::setupTasks(TaskGraphManager &taskgraph_mgr, const Config &cfg)
 {
+    auto &builder = taskgraph_mgr.init(TaskGraphID::Step);
+
     auto move_sys = builder.addToGraph<ParallelForNode<Engine, movementSystem,
         Action, SimEntity, AgentType>>({});
 
@@ -867,20 +811,9 @@ void Sim::setupTasks(TaskGraphBuilder &builder, const Config &cfg)
     auto reset_finish = clearTmp;
 #endif
 
-    if (cfg.enableBatchRender) {
-        render::BatchRenderingSystem::setupTasks(builder,
-            {reset_finish});
+    if (cfg.renderBridge) {
+        RenderingSystem::setupTasks(builder, deps);
     }
-
-    if (cfg.enableViewer) {
-        viz::VizRenderingSystem::setupTasks(builder,
-            {reset_finish});
-    }
-
-#if 0
-    prep_finish = builder.addToGraph<ParallelForNode<Engine,
-        sortDebugSystem, WorldReset>>({prep_finish});
-#endif
 
 #ifdef MADRONA_GPU_MODE
     auto recycle_sys = builder.addToGraph<RecycleEntitiesNode>({reset_finish});
@@ -947,24 +880,20 @@ Sim::Sim(Engine &ctx,
       rewardBuffer(init.rewardBuffer),
       doneBuffer(init.doneBuffer)
 {
-    CountT max_total_entities =
-        std::max(init.maxEntitiesPerWorld, uint32_t(3 + 3 + 9 + 2 + 6)) + 100;
+    const CountT max_total_entities = consts::maxBoxes + consts::maxRamps +
+        consts::maxAgents + 20;
 
-    phys::RigidBodyPhysicsSystem::init(ctx, init.rigidBodyObjMgr, deltaT,
-         numPhysicsSubsteps, -9.8 * math::up, max_total_entities,
-         50 * 20, 10);
+    phys::RigidBodyPhysicsSystem::init(ctx, cfg.rigidBodyObjMgr, deltaT,
+         numPhysicsSubsteps, -9.8 * math::up, max_total_entities);
 
-    if (cfg.enableViewer) {
-        viz::VizRenderingSystem::init(ctx, init.vizBridge);
-    }
+    enableRender = cfg.renderBridge != nullptr;
 
-    if (cfg.enableBatchRender) {
-        render::BatchRenderingSystem::init(ctx, init.batchRenderBridge);
+    if (enableRender) {
+        RenderingSystem::init(ctx, cfg.renderBridge);
     }
 
     obstacles =
         (Entity *)rawAlloc(sizeof(Entity) * size_t(max_total_entities));
-
     numObstacles = 0;
     minEpisodeEntities = init.minEntitiesPerWorld;
     maxEpisodeEntities = init.maxEntitiesPerWorld;
@@ -972,11 +901,9 @@ Sim::Sim(Engine &ctx,
     numHiders = 0;
     numSeekers = 0;
     numActiveAgents = 0;
-
+    
     curEpisodeStep = 0;
 
-    enableBatchRender = cfg.enableBatchRender;
-    enableViewer = cfg.enableViewer;
     autoReset = cfg.autoReset;
 
     resetEnvironment(ctx);

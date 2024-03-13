@@ -26,6 +26,61 @@ using namespace madrona::py;
 
 namespace GPUHideSeek {
 
+struct RenderGPUState {
+    render::APILibHandle apiLib;
+    render::APIManager apiMgr;
+    render::GPUHandle gpu;
+};
+
+static inline Optional<RenderGPUState> initRenderGPUState(
+    const Manager::Config &mgr_cfg)
+{
+    if (mgr_cfg.extRenderDev || !mgr_cfg.enableBatchRenderer) {
+        return Optional<RenderGPUState>::none();
+    }
+
+    auto render_api_lib = render::APIManager::loadDefaultLib();
+    render::APIManager render_api_mgr(render_api_lib.lib());
+    render::GPUHandle gpu = render_api_mgr.initGPU(mgr_cfg.gpuID);
+
+    return RenderGPUState {
+        .apiLib = std::move(render_api_lib),
+        .apiMgr = std::move(render_api_mgr),
+        .gpu = std::move(gpu),
+    };
+}
+
+static inline Optional<render::RenderManager> initRenderManager(
+    const Manager::Config &mgr_cfg,
+    const Optional<RenderGPUState> &render_gpu_state)
+{
+    if (!mgr_cfg.extRenderDev && !mgr_cfg.enableBatchRenderer) {
+        return Optional<render::RenderManager>::none();
+    }
+
+    render::APIBackend *render_api;
+    render::GPUDevice *render_dev;
+
+    if (render_gpu_state.has_value()) {
+        render_api = render_gpu_state->apiMgr.backend();
+        render_dev = render_gpu_state->gpu.device();
+    } else {
+        render_api = mgr_cfg.extRenderAPI;
+        render_dev = mgr_cfg.extRenderDev;
+    }
+
+    return render::RenderManager(render_api, render_dev, {
+        .enableBatchRenderer = mgr_cfg.enableBatchRenderer,
+        .agentViewWidth = mgr_cfg.batchRenderViewWidth,
+        .agentViewHeight = mgr_cfg.batchRenderViewHeight,
+        .numWorlds = mgr_cfg.numWorlds,
+        .maxViewsPerWorld = 1,
+        .maxInstancesPerWorld = 1000,
+        .execMode = mgr_cfg.execMode,
+        .voxelCfg = {},
+    });
+}
+
 struct Manager::Impl {
     Config cfg;
     PhysicsLoader physicsLoader;
@@ -195,10 +250,72 @@ static void loadPhysicsObjects(PhysicsLoader &loader)
     free(rigid_body_data);
 }
 
-Manager::Impl * Manager::Impl::init(
-    const Config &cfg,
-    const viz::VizECSBridge *viz_bridge,
-    const render::BatchRendererECSBridge *batch_render_bridge)
+static void loadRenderObjects(render::RenderManager &render_mgr)
+{
+    std::array<char, 1024> import_err;
+    auto render_assets = imp::ImportedAssets::importFromDisk({
+        (std::filesystem::path(DATA_DIR) / "sphere.obj").string().c_str(),
+        (std::filesystem::path(DATA_DIR) / "plane.obj").string().c_str(),
+        (std::filesystem::path(DATA_DIR) / "cube_render.obj").string().c_str(),
+        (std::filesystem::path(DATA_DIR) / "wall_render.obj").string().c_str(),
+        (std::filesystem::path(DATA_DIR) / "agent_render.obj").string().c_str(),
+        (std::filesystem::path(DATA_DIR) / "ramp_render.obj").string().c_str(),
+        (std::filesystem::path(DATA_DIR) / "elongated_render.obj").string().c_str(),
+    }, Span<char>(import_err.data(), import_err.size()));
+
+    if (!render_assets.has_value()) {
+        FATAL("Failed to load render assets: %s", import_err.data());
+    }
+
+    std::array<const char *, (size_t)SimObject::NumObjects> render_asset_cstrs;
+    for (size_t i = 0; i < render_asset_paths.size(); i++) {
+        render_asset_cstrs[i] = render_asset_paths[i].c_str();
+    }
+
+    std::array<char, 1024> import_err;
+    auto render_assets = imp::ImportedAssets::importFromDisk(
+        render_asset_cstrs, Span<char>(import_err.data(), import_err.size()));
+
+    if (!render_assets.has_value()) {
+        FATAL("Failed to load render assets: %s", import_err);
+    }
+
+    auto materials = std::to_array<imp::SourceMaterial>({
+        { math::Vector4{0.4f, 0.4f, 0.4f, 0.0f}, -1, 0.8f, 0.2f,},
+        { math::Vector4{1.0f, 0.1f, 0.1f, 0.0f}, -1, 0.8f, 0.2f,},
+        { math::Vector4{0.1f, 0.1f, 1.0f, 0.0f}, 1, 0.8f, 1.0f,},
+        { math::Vector4{0.5f, 0.3f, 0.3f, 0.0f},  0, 0.8f, 0.2f,},
+        { rgb8ToFloat(191, 108, 10), -1, 0.8f, 0.2f },
+        { rgb8ToFloat(12, 144, 150), -1, 0.8f, 0.2f },
+        { rgb8ToFloat(230, 230, 230),   -1, 0.8f, 1.0f },
+    });
+
+    // Override materials
+    render_assets->objects[0].meshes[0].materialIDX = 0;
+    render_assets->objects[1].meshes[0].materialIDX = 3;
+    render_assets->objects[2].meshes[0].materialIDX = 1;
+    render_assets->objects[3].meshes[0].materialIDX = 0;
+    render_assets->objects[4].meshes[0].materialIDX = 2;
+    render_assets->objects[4].meshes[1].materialIDX = 6;
+    render_assets->objects[4].meshes[2].materialIDX = 6;
+    render_assets->objects[5].meshes[0].materialIDX = 4;
+    render_assets->objects[6].meshes[0].materialIDX = 5;
+
+    render_mgr.loadObjects(render_assets->objects, materials, {
+        { (std::filesystem::path(DATA_DIR) /
+           "green_grid.png").string().c_str() },
+        { (std::filesystem::path(DATA_DIR) /
+           "smile.png").string().c_str() },
+        { (std::filesystem::path(DATA_DIR) /
+           "smile.png").string().c_str() },
+    });
+
+    render_mgr.configureLighting({
+        { true, math::Vector3{1.0f, 1.0f, -2.0f}, math::Vector3{1.0f, 1.0f, 1.0f} }
+    });
+}
+
+Manager::Impl * Manager::Impl::init(const Config &cfg)
 {
     HostEventLogging(HostEvent::initStart);
 
@@ -217,11 +334,8 @@ Manager::Impl * Manager::Impl::init(
         FATAL("Failed to load render assets: %s", import_err);
     }
 
-    GPUHideSeek::Config app_cfg {
-        batch_render_bridge != nullptr,
-        viz_bridge != nullptr,
-        cfg.autoReset,
-    };
+    GPUHideSeek::Config app_cfg; {
+    app_cfg.autoReset = cfg.autoReset;
 
     switch (cfg.execMode) {
     case ExecMode::CUDA: {
@@ -243,6 +357,21 @@ Manager::Impl * Manager::Impl::init(
         auto reward_buffer = (float *)cu::allocGPU(sizeof(float) *
             consts::maxAgents * cfg.numWorlds);
 
+        Optional<RenderGPUState> render_gpu_state =
+            initRenderGPUState(mgr_cfg);
+
+        Optional<render::RenderManager> render_mgr =
+            initRenderManager(mgr_cfg, render_gpu_state);
+
+        if (render_mgr.has_value()) {
+            loadRenderObjects(*render_mgr);
+            sim_cfg.renderBridge = render_mgr->bridge();
+         } else {
+             sim_cfg.renderBridge = nullptr;
+         }
+
+        sim_cfg.rigidBodyObjMgr = phys_obj_mgr;
+
         HeapArray<WorldInit> world_inits(cfg.numWorlds);
 
         for (int64_t i = 0; i < (int64_t)cfg.numWorlds; i++) {
@@ -253,8 +382,6 @@ Manager::Impl * Manager::Impl::init(
                 phys_obj_mgr,
                 0,
                 1,
-                viz_bridge,
-                batch_render_bridge,
             };
         }
 
@@ -266,7 +393,8 @@ Manager::Impl * Manager::Impl::init(
             .numWorldDataBytes = sizeof(Sim),
             .worldDataAlignment = alignof(Sim),
             .numWorlds = cfg.numWorlds,
-            .numExportedBuffers = 16,
+            .numTaskGraphs = (uint32_t)TaskGraphID::NumTaskGraphs,
+            .numExportedBuffers = (uint32_t)ExportID::NumExports,
         }, {
             { GPU_HIDESEEK_SRC_LIST },
             { GPU_HIDESEEK_COMPILE_FLAGS },
@@ -305,6 +433,21 @@ Manager::Impl * Manager::Impl::init(
 
         ObjectManager *phys_obj_mgr = &phys_loader.getObjectManager();
 
+        Optional<RenderGPUState> render_gpu_state =
+            initRenderGPUState(mgr_cfg);
+
+        Optional<render::RenderManager> render_mgr =
+            initRenderManager(mgr_cfg, render_gpu_state);
+
+        if (render_mgr.has_value()) {
+            loadRenderObjects(*render_mgr);
+            sim_cfg.renderBridge = render_mgr->bridge();
+         } else {
+            sim_cfg.renderBridge = nullptr;
+         }
+
+        sim_cfg.rigidBodyObjMgr = phys_obj_mgr;
+
         auto reward_buffer = (float *)malloc(
             sizeof(float) * consts::maxAgents * cfg.numWorlds);
 
@@ -328,10 +471,11 @@ Manager::Impl * Manager::Impl::init(
         CPUImpl::TaskGraphT cpu_exec {
             ThreadPoolExecutor::Config {
                 .numWorlds = cfg.numWorlds,
-                .numExportedBuffers = 16,
+                .numExportedBuffers = (uint32_t)ExportID::NumExports,
             },
             app_cfg,
             world_inits.data(),
+            (uint32_t)TaskGraphID::NumTaskGraphs,
         };
 
         WorldReset *world_reset_buffer =
@@ -381,11 +525,8 @@ Tensor Manager::Impl::exportStateTensor(EnumT slot,
     return Tensor(dev_ptr, type, dimensions, gpu_id);
 }
 
-Manager::Manager(
-        const Config &cfg,
-        const madrona::viz::VizECSBridge *viz_bridge,
-        const madrona::render::BatchRendererECSBridge *batch_render_bridge)
-    : impl_(Impl::init(cfg, viz_bridge, batch_render_bridge))
+Manager::Manager(const Config &cfg)
+    : impl_(Impl::init(cfg))
 {
     for (int32_t i = 0; i < (int32_t)cfg.numWorlds; i++) {
         triggerReset(i, 1, 3, 2);
@@ -450,9 +591,9 @@ void Manager::step()
 
 Tensor Manager::resetTensor() const
 {
-    return impl_->exportStateTensor(ExportID::Reset,
-                                    Tensor::ElementType::Int32,
-                                    {impl_->cfg.numWorlds, 3});
+    return impl_->exportStateTensor(
+        ExportID::Reset, Tensor::ElementType::Int32,
+        {impl_->cfg.numWorlds, 3});
 }
 
 Tensor Manager::doneTensor() const
@@ -468,14 +609,16 @@ Tensor Manager::doneTensor() const
 
 madrona::py::Tensor Manager::prepCounterTensor() const
 {
-    return exportStateTensor(ExportID::PrepCounter, Tensor::ElementType::Int32,
-                             {impl_->cfg.numWorlds * consts::maxAgents, 1});
+    return impl_->exportStateTensor(
+        ExportID::PrepCounter, Tensor::ElementType::Int32,
+        {impl_->cfg.numWorlds * consts::maxAgents, 1});
 }
 
 Tensor Manager::actionTensor() const
 {
-    return exportStateTensor(ExportID::Action, Tensor::ElementType::Int32,
-                             {impl_->cfg.numWorlds * consts::maxAgents, 5});
+    return impl_->exportStateTensor(
+        ExportID::Action, Tensor::ElementType::Int32,
+        {impl_->cfg.numWorlds * consts::maxAgents, 5});
 }
 
 Tensor Manager::rewardTensor() const
@@ -491,104 +634,115 @@ Tensor Manager::rewardTensor() const
 
 Tensor Manager::agentTypeTensor() const
 {
-    return exportStateTensor(5, Tensor::ElementType::Int32,
-                             {impl_->cfg.numWorlds * consts::maxAgents, 1});
+    return impl_->exportStateTensor(
+        ExportID::AgentType, Tensor::ElementType::Int32,
+        {impl_->cfg.numWorlds * consts::maxAgents, 1});
 }
 
 Tensor Manager::agentMaskTensor() const
 {
-    return exportStateTensor(6, Tensor::ElementType::Float32,
-                             {impl_->cfg.numWorlds * consts::maxAgents, 1});
+    return impl_->exportStateTensor(
+        ExportID::AgentMask, Tensor::ElementType::Float32,
+        {impl_->cfg.numWorlds * consts::maxAgents, 1});
 }
 
 
 madrona::py::Tensor Manager::agentDataTensor() const
 {
-    return exportStateTensor(7, Tensor::ElementType::Float32,
-                             {
-                                 impl_->cfg.numWorlds * consts::maxAgents,
-                                 consts::maxAgents - 1,
-                                 4,
-                             });
+    return impl_->exportStateTensor(
+        ExportID::AgentObsData, Tensor::ElementType::Float32,
+        {
+            impl_->cfg.numWorlds * consts::maxAgents,
+            consts::maxAgents - 1,
+            4,
+        });
 }
 
 madrona::py::Tensor Manager::boxDataTensor() const
 {
-    return exportStateTensor(8, Tensor::ElementType::Float32,
-                             {
-                                 impl_->cfg.numWorlds * consts::maxAgents,
-                                 consts::maxBoxes,
-                                 7,
-                             });
+    return impl_->exportStateTensor(
+        ExportID::BoxObsData, Tensor::ElementType::Float32,
+        {
+            impl_->cfg.numWorlds * consts::maxAgents,
+            consts::maxBoxes,
+            7,
+        });
 }
 
 madrona::py::Tensor Manager::rampDataTensor() const
 {
-    return exportStateTensor(9, Tensor::ElementType::Float32,
-                             {
-                                 impl_->cfg.numWorlds * consts::maxAgents,
-                                 consts::maxRamps,
-                                 5,
-                             });
+    return impl_->exportStateTensor(
+        ExportID::RampObsData, Tensor::ElementType::Float32,
+        {
+            impl_->cfg.numWorlds * consts::maxAgents,
+            consts::maxRamps,
+            5,
+        });
 }
 
 madrona::py::Tensor Manager::visibleAgentsMaskTensor() const
 {
-    return exportStateTensor(10, Tensor::ElementType::Float32,
-                             {
-                                 impl_->cfg.numWorlds * consts::maxAgents,
-                                 consts::maxAgents - 1,
-                                 1,
-                             });
+    return impl_->exportStateTensor(
+        ExportID::AgentVisMasks, Tensor::ElementType::Float32,
+        {
+            impl_->cfg.numWorlds * consts::maxAgents,
+            consts::maxAgents - 1,
+            1,
+        });
 }
 
 madrona::py::Tensor Manager::visibleBoxesMaskTensor() const
 {
-    return exportStateTensor(11, Tensor::ElementType::Float32,
-                             {
-                                 impl_->cfg.numWorlds * consts::maxAgents,
-                                 consts::maxBoxes,
-                                 1,
-                             });
+    return impl_->exportStateTensor(
+        ExportID::BoxVisMasks, Tensor::ElementType::Float32,
+        {
+            impl_->cfg.numWorlds * consts::maxAgents,
+            consts::maxBoxes,
+            1,
+        });
 }
 
 madrona::py::Tensor Manager::visibleRampsMaskTensor() const
 {
-    return exportStateTensor(12, Tensor::ElementType::Float32,
-                             {
-                                 impl_->cfg.numWorlds * consts::maxAgents,
-                                 consts::maxRamps,
-                                 1,
-                             });
-}
-
-madrona::py::Tensor Manager::globalPositionsTensor() const
-{
-    return exportStateTensor(13, Tensor::ElementType::Float32,
-                             {
-                                 impl_->cfg.numWorlds,
-                                 consts::maxBoxes + consts::maxRamps +
-                                     consts::maxAgents,
-                                 2,
-                             });
+    return impl_->exportStateTensor(
+        ExportID::RampVisMasks, Tensor::ElementType::Float32,
+        {
+            impl_->cfg.numWorlds * consts::maxAgents,
+            consts::maxRamps,
+            1,
+        });
 }
 
 madrona::py::Tensor Manager::lidarTensor() const
 {
-    return exportStateTensor(14, Tensor::ElementType::Float32,
-                             {
-                                 impl_->cfg.numWorlds * consts::maxAgents,
-                                 30,
-                             });
+    return impl_->exportStateTensor(
+        ExportID::Lidar, Tensor::ElementType::Float32,
+        {
+            impl_->cfg.numWorlds * consts::maxAgents,
+            30,
+        });
 }
 
 madrona::py::Tensor Manager::seedTensor() const
 {
-    return exportStateTensor(15, Tensor::ElementType::Int32,
-                             {
-                                 impl_->cfg.numWorlds * consts::maxAgents,
-                                 1,
-                             });
+    return impl_->exportStateTensor(
+        ExportID::Seed, Tensor::ElementType::Int32,
+        {
+            impl_->cfg.numWorlds * consts::maxAgents,
+            1,
+        });
+}
+
+madrona::py::Tensor Manager::globalPositionsTensor() const
+{
+    return impl_->exportStateTensor(
+        ExportID::GlobalDebugPositions, Tensor::ElementType::Float32,
+        {
+            impl_->cfg.numWorlds,
+            consts::maxBoxes + consts::maxRamps +
+                consts::maxAgents,
+            2,
+        });
 }
 
 Tensor Manager::depthTensor() const

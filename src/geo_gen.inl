@@ -13,7 +13,7 @@ madrona::Entity makeDynObject(Engine &ctx,
     using namespace madrona;
     using namespace madrona::math;
 
-    Entity e = ctx.makeEntity<DynamicObject>();
+    Entity e = ctx.makeRenderableEntity<DynamicObject>();
     ctx.get<Position>(e) = pos;
     ctx.get<Rotation>(e) = rot;
     ctx.get<Scale>(e) = scale;

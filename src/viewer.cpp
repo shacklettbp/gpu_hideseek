@@ -1,4 +1,5 @@
 #include <madrona/viz/viewer.hpp>
+#include <madrona/render/render_mgr.hpp>
 
 #include "mgr.hpp"
 
@@ -74,46 +75,27 @@ int main(int argc, char *argv[])
         num_replay_steps = replay_log->size() / (num_worlds * num_views * 5);
     }
 
-    std::array<char, 1024> import_err;
-    auto render_assets = imp::ImportedAssets::importFromDisk({
-        (std::filesystem::path(DATA_DIR) / "sphere.obj").string().c_str(),
-        (std::filesystem::path(DATA_DIR) / "plane.obj").string().c_str(),
-        (std::filesystem::path(DATA_DIR) / "cube_render.obj").string().c_str(),
-        (std::filesystem::path(DATA_DIR) / "wall_render.obj").string().c_str(),
-        (std::filesystem::path(DATA_DIR) / "agent_render.obj").string().c_str(),
-        (std::filesystem::path(DATA_DIR) / "ramp_render.obj").string().c_str(),
-        (std::filesystem::path(DATA_DIR) / "elongated_render.obj").string().c_str(),
-    }, Span<char>(import_err.data(), import_err.size()));
+    WindowManager wm {};
+    WindowHandle window = wm.makeWindow("Puzzle Bench", 2730, 1536);
+    render::GPUHandle render_gpu = wm.initGPU(0, { window.get() });
 
-    if (!render_assets.has_value()) {
-        FATAL("Failed to load render assets: %s", import_err.data());
-    }
-
-    auto materials = std::to_array<imp::SourceMaterial>({
-        { math::Vector4{0.4f, 0.4f, 0.4f, 0.0f}, -1, 0.8f, 0.2f,},
-        { math::Vector4{1.0f, 0.1f, 0.1f, 0.0f}, -1, 0.8f, 0.2f,},
-        { math::Vector4{0.1f, 0.1f, 1.0f, 0.0f}, 1, 0.8f, 1.0f,},
-        { math::Vector4{0.5f, 0.3f, 0.3f, 0.0f},  0, 0.8f, 0.2f,},
-        { rgb8ToFloat(191, 108, 10), -1, 0.8f, 0.2f },
-        { rgb8ToFloat(12, 144, 150), -1, 0.8f, 0.2f },
-        { rgb8ToFloat(230, 230, 230),   -1, 0.8f, 1.0f },
+    Manager mgr({
+        .execMode = exec_mode,
+        .gpuID = 0,
+        .numWorlds = num_worlds,
+        .renderWidth = 0,
+        .renderHeight = 0,
+        .autoReset = replay_log_path != nullptr,
+        .enableBatchRender = false,
+        .extRenderAPI = wm.gpuAPIManager().backend(),
+        .extRenderDev = render_gpu.device(),
     });
-
-    const_cast<uint32_t&>(render_assets->objects[0].meshes[0].materialIDX) = 0;
-    const_cast<uint32_t&>(render_assets->objects[1].meshes[0].materialIDX) = 3;
-    const_cast<uint32_t&>(render_assets->objects[2].meshes[0].materialIDX) = 1;
-    const_cast<uint32_t&>(render_assets->objects[3].meshes[0].materialIDX) = 0;
-    const_cast<uint32_t&>(render_assets->objects[4].meshes[0].materialIDX) = 2;
-    const_cast<uint32_t&>(render_assets->objects[4].meshes[1].materialIDX) = 6;
-    const_cast<uint32_t&>(render_assets->objects[4].meshes[2].materialIDX) = 6;
-    const_cast<uint32_t&>(render_assets->objects[5].meshes[0].materialIDX) = 4;
-    const_cast<uint32_t&>(render_assets->objects[6].meshes[0].materialIDX) = 5;
 
     math::Quat initial_camera_rotation =
         (math::Quat::angleAxis(-math::pi / 2.f, math::up) *
         math::Quat::angleAxis(-math::pi / 2.f, math::right)).normalize();
 
-    Viewer viewer({
+    viz::Viewer viewer(mgr.getRenderManager(), window.get(), {
         .gpuID = 0,
         .renderWidth = 1920,
         .renderHeight = 1080,
@@ -126,28 +108,6 @@ int main(int argc, char *argv[])
         .cameraRotation = initial_camera_rotation,
         .execMode = exec_mode,
     });
-
-    viewer.loadObjects(render_assets->objects, materials, {
-        { (std::filesystem::path(DATA_DIR) /
-           "green_grid.png").string().c_str() },
-        { (std::filesystem::path(DATA_DIR) /
-           "smile.png").string().c_str() },
-    });
-
-    viewer.configureLighting({
-        { true, math::Vector3{1.0f, 1.0f, -2.f}, math::Vector3{1.0f, 1.0f, 1.0f} }
-    });
-
-    Manager mgr({
-        .execMode = exec_mode,
-        .gpuID = 0,
-        .numWorlds = num_worlds,
-        .renderWidth = 0,
-        .renderHeight = 0,
-        .autoReset = replay_log_path != nullptr,
-        .enableBatchRender = false,
-        .debugCompile = false,
-    }, viewer.rendererBridge());
 
     auto replayStep = [&]() {
         if (cur_replay_step == num_replay_steps - 1) {
@@ -203,8 +163,6 @@ int main(int argc, char *argv[])
 
         printf("\n");
     };
-
-
 
     viewer.loop([&](CountT world_idx, CountT agent_idx,
                        const Viewer::UserInput &input) {
