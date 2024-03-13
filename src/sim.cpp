@@ -48,7 +48,6 @@ void Sim::registerTypes(ECSRegistry &registry,
 
     registry.registerArchetype<DynamicObject>();
     registry.registerArchetype<AgentInterface>();
-    registry.registerArchetype<CameraAgent>();
     registry.registerArchetype<DynAgent>();
 
     registry.exportSingleton<WorldReset>(
@@ -738,6 +737,15 @@ inline void globalPositionsDebugSystem(Engine &ctx,
     }
 }
 
+inline void updateCameraSystem(Engine &ctx,
+                               Position &pos,
+                               Rotation &rot,
+                               SimEntity sim_e)
+{
+    pos = ctx.get<Position>(sim_e.e);
+    rot = ctx.get<Rotation>(sim_e.e);
+}
+
 #ifdef MADRONA_GPU_MODE
 template <typename ArchetypeT>
 TaskGraph::NodeID queueSortByWorld(TaskGraphBuilder &builder,
@@ -797,7 +805,6 @@ void Sim::setupTasks(TaskGraphManager &taskgraph_mgr, const Config &cfg)
 
 #ifdef MADRONA_GPU_MODE
     // FIXME: these 3 need to be compacted, but sorting is unnecessary
-    auto sort_cam_agent = queueSortByWorld<CameraAgent>(builder, {clear_tmp});
     auto sort_dyn_agent = queueSortByWorld<DynAgent>(builder, {sort_cam_agent});
     auto sort_objects = queueSortByWorld<DynamicObject>(builder, {sort_dyn_agent});
     auto sort_agent_iface =
@@ -807,15 +814,11 @@ void Sim::setupTasks(TaskGraphManager &taskgraph_mgr, const Config &cfg)
     auto reset_finish = clear_tmp;
 #endif
 
-    if (cfg.renderBridge) {
-        RenderingSystem::setupTasks(builder, {reset_finish});
-    }
-
 #ifdef MADRONA_GPU_MODE
     auto recycle_sys = builder.addToGraph<RecycleEntitiesNode>({reset_finish});
     (void)recycle_sys;
 #endif
-    
+
     auto post_reset_broadphase = phys::RigidBodyPhysicsSystem::setupBroadphaseTasks(
         builder, {reset_finish});
 
@@ -862,6 +865,17 @@ void Sim::setupTasks(TaskGraphManager &taskgraph_mgr, const Config &cfg)
             GlobalDebugPositions
         >>({reset_finish});
 
+    if (cfg.renderBridge) {
+        auto update_camera = builder.addToGraph<ParallelForNode<Engine,
+            updateCameraSystem,
+                Position,
+                Rotation,
+                SimEntity
+            >>({reset_finish});
+
+        RenderingSystem::setupTasks(builder, {update_camera});
+    }
+
     (void)lidar;
     (void)compute_visibility;
     (void)collect_observations;
@@ -877,7 +891,7 @@ Sim::Sim(Engine &ctx,
       doneBuffer(init.doneBuffer)
 {
     const CountT max_total_entities = consts::maxBoxes + consts::maxRamps +
-        consts::maxAgents + 20;
+        consts::maxAgents + 30;
 
     phys::RigidBodyPhysicsSystem::init(ctx, cfg.rigidBodyObjMgr, deltaT,
          numPhysicsSubsteps, -9.8 * math::up, max_total_entities);

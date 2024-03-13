@@ -1,6 +1,8 @@
 #include "level_gen.hpp"
 #include "geo_gen.hpp"
 
+namespace RenderingSystem = madrona::render::RenderingSystem;
+
 namespace GPUHideSeek {
 
 using namespace madrona;
@@ -13,6 +15,13 @@ static Entity makeAgent(Engine &ctx, AgentType agent_type)
     Entity agent_iface =
         ctx.data().agentInterfaces[ctx.data().numActiveAgents++] =
             ctx.makeEntity<AgentInterface>();
+
+    if (ctx.data().enableRender) {
+        render::RenderingSystem::attachEntityToView(ctx,
+                agent_iface,
+                100.f, 0.001f,
+                1.5f * math::up);
+    }
 
     Entity agent = ctx.makeRenderableEntity<T>();
     ctx.get<SimEntity>(agent_iface).e = agent;
@@ -208,25 +217,12 @@ static void generateTrainingEnvironment(Engine &ctx,
     }
     ctx.data().numActiveRamps = num_ramps;
 
-    auto makeDynAgent = [&](Vector3 pos, Quat rot, bool is_hider,
-                            int32_t view_idx) {
+    auto makeDynAgent = [&](Vector3 pos, Quat rot, bool is_hider) {
         Entity agent = makeAgent<DynAgent>(ctx,
             is_hider ? AgentType::Hider : AgentType::Seeker);
         ctx.get<Position>(agent) = pos;
         ctx.get<Rotation>(agent) = rot;
         ctx.get<Scale>(agent) = Diag3x3 { 1, 1, 1 };
-        if (ctx.data().enableBatchRender) {
-            ctx.get<render::BatchRenderCamera>(agent) =
-                render::BatchRenderingSystem::setupView(ctx, 90.f, 0.001f,
-                    Vector3 { 0, 0, 0.2f }, view_idx);
-        }
-
-        if (ctx.data().enableViewer) {
-            ctx.get<viz::VizCamera>(agent) =
-                viz::VizRenderingSystem::setupView(ctx, 90.f, 0.001f,
-                        Vector3 { 0, 0, 0.2f }, view_idx);
-        }
-
         ObjectID agent_obj_id = ObjectID { 4 };
         ctx.get<ObjectID>(agent) = agent_obj_id;
         ctx.get<phys::broadphase::LeafID>(agent) =
@@ -261,7 +257,7 @@ static void generateTrainingEnvironment(Engine &ctx,
             AABB aabb = obj_mgr.rigidBodyAABBs[4];
             aabb = aabb.applyTRS(pos, rot, scale);
             if (checkOverlap(aabb) || rejections == max_rejections) {
-                makeDynAgent(pos, rot, true, i);
+                makeDynAgent(pos, rot, true);
                 break;
             }
 
@@ -285,7 +281,7 @@ static void generateTrainingEnvironment(Engine &ctx,
             aabb = aabb.applyTRS(pos, rot, scale);
 
             if (checkOverlap(aabb) || rejections == max_rejections) {
-                makeDynAgent(pos, rot, false, num_hiders + i);
+                makeDynAgent(pos, rot, false);
                 break;
             }
 
@@ -342,24 +338,7 @@ static void singleCubeLevel(Engine &ctx, Vector3 pos, Quat rot)
     all_entities[total_entities++] =
         makePlane(ctx, {0, 0, 0}, Quat::angleAxis(0, {1, 0, 0}));
 
-    const Quat agent_rot =
-        Quat::angleAxis(toRadians(-45), {0, 0, 1});
-
     ctx.data().numObstacles = total_entities;
-
-    Entity agent = makeAgent<CameraAgent>(ctx, AgentType::Camera);
-    if (ctx.data().enableBatchRender) {
-        ctx.get<render::BatchRenderCamera>(agent) =
-            render::BatchRenderingSystem::setupView(ctx, 90.f, 0.001f,
-                                               up * 0.5f, 0);
-    }
-    if (ctx.data().enableViewer) {
-        ctx.get<viz::VizCamera>(agent) =
-            viz::VizRenderingSystem::setupView(ctx, 90.f, 0.001f,
-                                               up * 0.5f, 0);
-    }
-    ctx.get<Position>(agent) = Vector3 { -5, -5, 0 };
-    ctx.get<Rotation>(agent) = agent_rot;
 }
 
 static void level2(Engine &ctx)
@@ -404,26 +383,7 @@ static void level4(Engine &ctx)
     //all_entities[total_entities++] =
     //    makePlane(ctx, {20, 0, 0}, Quat::angleAxis(-pi_d2, {0, 1, 0}));
 
-    const Quat agent_rot =
-        Quat::angleAxis(toRadians(-45), {0, 0, 1});
-
     ctx.data().numObstacles = total_entities;
-
-    Entity agent = makeAgent<CameraAgent>(ctx, AgentType::Camera);
-    if (ctx.data().enableBatchRender) {
-        ctx.get<render::BatchRenderCamera>(agent) =
-            render::BatchRenderingSystem::setupView(ctx, 90.f, 0.001f,
-                                               up * 0.5f, 0);
-    }
-
-    if (ctx.data().enableViewer) {
-        ctx.get<viz::VizCamera>(agent) =
-            viz::VizRenderingSystem::setupView(ctx, 90.f, 0.001f,
-                                               up * 0.5f, 0);
-    }
-
-    ctx.get<Position>(agent) = Vector3 { -7.5, -7.5, 0.5 };
-    ctx.get<Rotation>(agent) = agent_rot;
 }
 
 static void level5(Engine &ctx)
@@ -466,25 +426,6 @@ static void level5(Engine &ctx)
     //all_entities[total_entities++] =
     //    makePlane(ctx, {0, 20, 0}, Quat::angleAxis(pi_d2, {1, 0, 0}));
 
-    const Quat agent_rot =
-        Quat::angleAxis(-pi_d2, {1, 0, 0});
-
-    Entity agent = makeAgent<CameraAgent>(ctx, AgentType::Camera);
-    if (ctx.data().enableBatchRender) {
-        ctx.get<render::BatchRenderCamera>(agent) =
-            render::BatchRenderingSystem::setupView(ctx, 90.f, 0.001f,
-                                                    up * 0.5f, 0);
-    }
-
-    if (ctx.data().enableViewer) {
-        ctx.get<viz::VizCamera>(agent) =
-            viz::VizRenderingSystem::setupView(ctx, 90.f, 0.001f,
-                                                    up * 0.5f, 0);
-    }
-
-    ctx.get<Position>(agent) = Vector3 { 0, 0, 35 };
-    ctx.get<Rotation>(agent) = agent_rot;
-
     ctx.data().numObstacles = total_entities;
 }
 
@@ -506,25 +447,12 @@ static void level6(Engine &ctx)
             ctx, {0, -5, 1}, Quat::angleAxis(0, {1, 0, 0}), 2,
             ResponseType::Dynamic, OwnerTeam::None, {1.f, 1.f, 1.f} );
 
-    auto makeDynAgent = [&](Vector3 pos, Quat rot, bool is_hider,
-                            int32_t view_idx) {
+    auto makeDynAgent = [&](Vector3 pos, Quat rot, bool is_hider) {
         Entity agent = makeAgent<DynAgent>(ctx,
             is_hider ? AgentType::Hider : AgentType::Seeker);
         ctx.get<Position>(agent) = pos;
         ctx.get<Rotation>(agent) = rot;
         ctx.get<Scale>(agent) = Diag3x3 { 1, 1, 1 };
-        if (ctx.data().enableBatchRender) {
-            ctx.get<render::BatchRenderCamera>(agent) =
-                render::BatchRenderingSystem::setupView(ctx, 90.f, 0.001f,
-                    Vector3 { 0, 0, -0.2 }, view_idx);
-        }
-
-        if (ctx.data().enableViewer) {
-            ctx.get<viz::VizCamera>(agent) =
-                viz::VizRenderingSystem::setupView(ctx, 90.f, 0.001f,
-                    Vector3 { 0, 0, -0.2 }, view_idx);
-        }
-
         ObjectID agent_obj_id = ObjectID { 4 };
         ctx.get<ObjectID>(agent) = agent_obj_id;
         ctx.get<phys::broadphase::LeafID>(agent) =
@@ -545,10 +473,10 @@ static void level6(Engine &ctx)
     };
 
     makeDynAgent({ -15, -15, 1.5 },
-        Quat::angleAxis(toRadians(-45), {0, 0, 1}), true, 0);
+        Quat::angleAxis(toRadians(-45), {0, 0, 1}), true);
 
     makeDynAgent({ -15, -10, 1.5 },
-        Quat::angleAxis(toRadians(45), {0, 0, 1}), false, 1);
+        Quat::angleAxis(toRadians(45), {0, 0, 1}), false);
 
     ctx.data().numObstacles = num_entities;
 }
@@ -579,24 +507,7 @@ static void level7(Engine &ctx)
     all_entities[total_entities++] =
         makePlane(ctx, {20, 0, 0}, Quat::angleAxis(-pi_d2, {0, 1, 0}));
 
-    const Quat agent_rot =
-        Quat::angleAxis(toRadians(-45), {0, 0, 1});
-
     ctx.data().numObstacles = total_entities;
-
-    Entity agent = makeAgent<CameraAgent>(ctx, AgentType::Camera);
-    if (ctx.data().enableBatchRender) {
-        ctx.get<render::BatchRenderCamera>(agent) =
-            render::BatchRenderingSystem::setupView(ctx, 90.f, 0.001f,
-                                               up * 0.5f, 0);
-    }
-    if (ctx.data().enableViewer) {
-        ctx.get<viz::VizCamera>(agent) =
-            viz::VizRenderingSystem::setupView(ctx, 90.f, 0.001f,
-                                               up * 0.5f, 0);
-    }
-    ctx.get<Position>(agent) = Vector3 { -5, -5, 0.5 };
-    ctx.get<Rotation>(agent) = agent_rot;
 }
 
 static void level8(Engine &ctx)
@@ -633,24 +544,7 @@ static void level8(Engine &ctx)
     all_entities[total_entities++] =
         makePlane(ctx, {20, 0, 0}, Quat::angleAxis(-pi_d2, {0, 1, 0}));
 
-    const Quat agent_rot =
-        Quat::angleAxis(toRadians(-45), {0, 0, 1});
-
     ctx.data().numObstacles = total_entities;
-
-    Entity agent = makeAgent<CameraAgent>(ctx, AgentType::Camera);
-    if (ctx.data().enableBatchRender) {
-        ctx.get<render::BatchRenderCamera>(agent) =
-            render::BatchRenderingSystem::setupView(ctx, 90.f, 0.001f,
-                                                    up * 0.5f, 0);
-    }
-    if (ctx.data().enableViewer) {
-        ctx.get<viz::VizCamera>(agent) =
-            viz::VizRenderingSystem::setupView(ctx, 90.f, 0.001f,
-                                               up * 0.5f, 0);
-    }
-    ctx.get<Position>(agent) = Vector3 { -5, -5, 0.5 };
-    ctx.get<Rotation>(agent) = agent_rot;
 }
 
 static void generateDebugEnvironment(Engine &ctx, CountT level_id)

@@ -9,8 +9,8 @@
 
 #include <madrona/py/utils.hpp>
 #include <madrona/exec_mode.hpp>
-#include <madrona/render/mw.hpp>
-#include <madrona/viz/system.hpp>
+
+#include <madrona/render/render_mgr.hpp>
 
 namespace GPUHideSeek {
 
@@ -28,7 +28,6 @@ public:
         uint32_t batchRenderViewHeight = 64;
         madrona::render::APIBackend *extRenderAPI = nullptr;
         madrona::render::GPUDevice *extRenderDev = nullptr;
-        bool debugCompile;
     };
 
     MGR_EXPORT Manager(const Config &cfg);
@@ -53,7 +52,7 @@ public:
     MGR_EXPORT madrona::py::Tensor lidarTensor() const;
     MGR_EXPORT madrona::py::Tensor seedTensor() const;
 
-    MGR_EXPORT madrona::py::Tensor depthTensor() const
+    MGR_EXPORT madrona::py::Tensor depthTensor() const;
     MGR_EXPORT madrona::py::Tensor rgbTensor() const;
 
     MGR_EXPORT void triggerReset(madrona::CountT world_idx,
@@ -64,14 +63,12 @@ public:
                               int32_t x, int32_t y, int32_t r,
                               bool g, bool l);
 
+    madrona::render::RenderManager & getRenderManager();
+
 private:
     struct Impl;
     struct CPUImpl;
     struct CUDAImpl;
-
-    inline madrona::py::Tensor exportStateTensor(int64_t slot,
-        madrona::py::Tensor::ElementType type,
-        madrona::Span<const int64_t> dimensions) const;
 
     Impl *impl_;
 };

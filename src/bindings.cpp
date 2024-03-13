@@ -25,11 +25,10 @@ NB_MODULE(gpu_hideseek, m) {
                             madrona::py::PyExecMode exec_mode,
                             int64_t gpu_id,
                             int64_t num_worlds,
-                            int64_t render_width,
-                            int64_t render_height, 
                             bool auto_reset,
                             bool enable_batch_render,
-                            bool debug_compile) {
+                            int64_t render_width,
+                            int64_t render_height) {
             new (self) Manager(Manager::Config {
                 .execMode = exec_mode,
                 .gpuID = (int)gpu_id,
@@ -37,17 +36,15 @@ NB_MODULE(gpu_hideseek, m) {
                 .renderWidth = (uint32_t)render_width,
                 .renderHeight = (uint32_t)render_height,
                 .autoReset = auto_reset,
-                .enableBatchRender = enable_batch_render,
-                .debugCompile = debug_compile,
+                .enableBatchRenderer = enable_batch_render,
             });
         }, nb::arg("exec_mode"),
            nb::arg("gpu_id"),
            nb::arg("num_worlds"),
-           nb::arg("render_width"),
-           nb::arg("render_height"),
            nb::arg("auto_reset") = false,
-           nb::arg("enable_batch_render") = false,
-           nb::arg("debug_compile") = false)
+           nb::arg("enable_batch_renderer") = false,
+           nb::arg("batch_render_width") = 64,
+           nb::arg("batch_render_height") = 64)
         .def("step", &Manager::step)
         .def("reset_tensor", &Manager::resetTensor)
         .def("done_tensor", &Manager::doneTensor)

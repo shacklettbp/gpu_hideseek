@@ -54,10 +54,21 @@ enum class TaskGraphID : uint32_t {
     NumTaskGraphs,
 };
 
+enum class SimObject : uint32_t {
+    Sphere,
+    Plane,
+    Cube,
+    Wall,
+    Agent,
+    Ramp,
+    Box,
+    NumObjects,
+};
+
 struct Config {
     bool autoReset;
-    madrona::render::RenderECSBridge *renderBridge;
     madrona::phys::ObjectManager *rigidBodyObjMgr;
+    const madrona::render::RenderECSBridge *renderBridge;
 };
 
 class Engine;
@@ -102,7 +113,8 @@ struct DynamicObject : public madrona::Archetype<
     ExternalForce,
     ExternalTorque,
     madrona::phys::broadphase::LeafID,
-    OwnerTeam
+    OwnerTeam,
+    madrona::render::Renderable
 > {};
 
 struct Action {
@@ -182,7 +194,6 @@ static_assert(sizeof(Action) == 5 * sizeof(int32_t));
 struct AgentInterface : public madrona::Archetype<
     Position,
     Rotation,
-    Scale,
     SimEntity,
     AgentPrepCounter,
     Action,
@@ -197,11 +208,6 @@ struct AgentInterface : public madrona::Archetype<
     Lidar,
     Seed,
     madrona::render::RenderCamera
-> {};
-
-struct CameraAgent : public madrona::Archetype<
-    Position,
-    Rotation
 > {};
 
 struct DynAgent : public madrona::Archetype<

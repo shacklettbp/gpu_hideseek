@@ -8,7 +8,6 @@
 #include <random>
 
 using namespace madrona;
-using namespace madrona::viz;
 
 [[maybe_unused]] static void saveWorldActions(
     const HeapArray<int32_t> &action_store,

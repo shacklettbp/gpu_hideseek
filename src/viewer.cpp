@@ -9,25 +9,6 @@
 using namespace madrona;
 using namespace madrona::viz;
 
-static inline float srgbToLinear(float srgb)
-{
-    if (srgb <= 0.04045f) {
-        return srgb / 12.92f;
-    }
-
-    return powf((srgb + 0.055f) / 1.055f, 2.4f);
-}
-
-static inline math::Vector4 rgb8ToFloat(uint8_t r, uint8_t g, uint8_t b)
-{
-    return {
-        srgbToLinear((float)r / 255.f),
-        srgbToLinear((float)g / 255.f),
-        srgbToLinear((float)b / 255.f),
-        1.f,
-    };
-}
-
 static HeapArray<int32_t> readReplayLog(const char *path)
 {
     std::ifstream replay_log(path, std::ios::binary);
@@ -75,8 +56,16 @@ int main(int argc, char *argv[])
         num_replay_steps = replay_log->size() / (num_worlds * num_views * 5);
     }
 
+    
+    bool enable_batch_renderer =
+#ifdef MADRONA_MACOS
+        false;
+#else
+        true;
+#endif
+
     WindowManager wm {};
-    WindowHandle window = wm.makeWindow("Puzzle Bench", 2730, 1536);
+    WindowHandle window = wm.makeWindow("Hide & Seek", 2730, 1536);
     render::GPUHandle render_gpu = wm.initGPU(0, { window.get() });
 
     Manager mgr({
@@ -86,7 +75,7 @@ int main(int argc, char *argv[])
         .renderWidth = 0,
         .renderHeight = 0,
         .autoReset = replay_log_path != nullptr,
-        .enableBatchRender = false,
+        .enableBatchRenderer = enable_batch_renderer,
         .extRenderAPI = wm.gpuAPIManager().backend(),
         .extRenderDev = render_gpu.device(),
     });
@@ -96,17 +85,11 @@ int main(int argc, char *argv[])
         math::Quat::angleAxis(-math::pi / 2.f, math::right)).normalize();
 
     viz::Viewer viewer(mgr.getRenderManager(), window.get(), {
-        .gpuID = 0,
-        .renderWidth = 1920,
-        .renderHeight = 1080,
         .numWorlds = num_worlds,
-        .maxViewsPerWorld = num_views,
-        .maxInstancesPerWorld = 1000,
-        .defaultSimTickRate = 15,
+        .simTickRate = 25,
         .cameraMoveSpeed = 10.f,
         .cameraPosition = { 0, 15.f, 30 },
         .cameraRotation = initial_camera_rotation,
-        .execMode = exec_mode,
     });
 
     auto replayStep = [&]() {
@@ -164,8 +147,56 @@ int main(int argc, char *argv[])
         printf("\n");
     };
 
-    viewer.loop([&](CountT world_idx, CountT agent_idx,
-                       const Viewer::UserInput &input) {
+    viewer.loop(
+    [&](CountT world_idx,
+        const Viewer::UserInput &input)
+    {
+        using Key = Viewer::KeyboardKey;
+
+        if (input.keyHit(Key::R)) {
+            mgr.triggerReset(world_idx, 1, 3, 2);
+        }
+
+        if (input.keyHit(Key::K1)) {
+            mgr.triggerReset(world_idx, 1, 3, 2);
+        }
+
+        if (input.keyHit(Key::K2)) {
+            mgr.triggerReset(world_idx, 2, 3, 2);
+        }
+
+        if (input.keyHit(Key::K3)) {
+            mgr.triggerReset(world_idx, 3, 3, 2);
+        }
+
+        if (input.keyHit(Key::K4)) {
+            mgr.triggerReset(world_idx, 4, 3, 2);
+        }
+
+        if (input.keyHit(Key::K5)) {
+            mgr.triggerReset(world_idx, 5, 3, 2);
+        }
+
+        if (input.keyHit(Key::K6)) {
+            mgr.triggerReset(world_idx, 6, 3, 2);
+        }
+
+        if (input.keyHit(Key::K7)) {
+            mgr.triggerReset(world_idx, 7, 3, 2);
+        }
+
+        if (input.keyHit(Key::K8)) {
+            mgr.triggerReset(world_idx, 8, 3, 2);
+        }
+
+        if (input.keyHit(Key::K9)) {
+            mgr.triggerReset(world_idx, 9, 3, 2);
+        }
+
+    },
+    [&](CountT world_idx, CountT agent_idx,
+        const Viewer::UserInput &input)
+    {
         using Key = Viewer::KeyboardKey;
 
         int32_t x = 5;
@@ -173,46 +204,6 @@ int main(int argc, char *argv[])
         int32_t r = 5;
         bool g = false;
         bool l = false;
-
-        if (input.keyPressed(Key::R)) {
-            mgr.triggerReset(world_idx, 1, 3, 2);
-        }
-
-        if (input.keyPressed(Key::K1)) {
-            mgr.triggerReset(world_idx, 1, 3, 2);
-        }
-
-        if (input.keyPressed(Key::K2)) {
-            mgr.triggerReset(world_idx, 2, 3, 2);
-        }
-
-        if (input.keyPressed(Key::K3)) {
-            mgr.triggerReset(world_idx, 3, 3, 2);
-        }
-
-        if (input.keyPressed(Key::K4)) {
-            mgr.triggerReset(world_idx, 4, 3, 2);
-        }
-
-        if (input.keyPressed(Key::K5)) {
-            mgr.triggerReset(world_idx, 5, 3, 2);
-        }
-
-        if (input.keyPressed(Key::K6)) {
-            mgr.triggerReset(world_idx, 6, 3, 2);
-        }
-
-        if (input.keyPressed(Key::K7)) {
-            mgr.triggerReset(world_idx, 7, 3, 2);
-        }
-
-        if (input.keyPressed(Key::K8)) {
-            mgr.triggerReset(world_idx, 8, 3, 2);
-        }
-
-        if (input.keyPressed(Key::K9)) {
-            mgr.triggerReset(world_idx, 9, 3, 2);
-        }
 
         if (input.keyPressed(Key::W)) {
             y += 5;
