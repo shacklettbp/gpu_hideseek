@@ -117,6 +117,8 @@ static inline void resetEnvironment(Engine &ctx)
     ctx.data().numSeekers = 0;
 
     for (int32_t i = 0; i < ctx.data().numActiveAgents; i++) {
+        RenderingSystem::cleanupViewingEntity(
+            ctx, ctx.data().agentInterfaces[i]);
         ctx.destroyEntity(ctx.data().agentInterfaces[i]);
     }
     ctx.data().numActiveAgents = 0;
@@ -150,7 +152,6 @@ inline void movementSystem(Engine &ctx, Action &action, SimEntity sim_e,
                                  AgentType agent_type)
 {
     if (sim_e.e == Entity::none()) return;
-
     if (agent_type == AgentType::Seeker &&
             ctx.data().curEpisodeStep < numPrepSteps - 1) {
         return;
@@ -164,22 +165,11 @@ inline void movementSystem(Engine &ctx, Action &action, SimEntity sim_e,
     constexpr float turn_discrete_action_max = 40 * 4;
     constexpr float turn_delta_per_bucket = turn_discrete_action_max / half_buckets;
 
-    Vector3 cur_pos = ctx.get<Position>(sim_e.e);
     Quat cur_rot = ctx.get<Rotation>(sim_e.e);
 
     float f_x = move_delta_per_bucket * (action.x - 5);
     float f_y = move_delta_per_bucket * (action.y - 5);
     float t_z = turn_delta_per_bucket * (action.r - 5);
-
-    if (agent_type == AgentType::Camera) {
-        ctx.get<Position>(sim_e.e) =
-            cur_pos + 0.001f * cur_rot.rotateVec({f_x, f_y, 0});
-
-        Quat delta_rot = Quat::angleAxis(t_z * 0.001f, math::up);
-        ctx.get<Rotation>(sim_e.e) = (delta_rot * cur_rot).normalize();
-
-        return;
-    }
 
     ctx.get<ExternalForce>(sim_e.e) = cur_rot.rotateVec({ f_x, f_y, 0 });
     ctx.get<ExternalTorque>(sim_e.e) = Vector3 { 0, 0, t_z };
@@ -191,7 +181,10 @@ inline void actionSystem(Engine &ctx,
                          AgentType agent_type)
 {
     if (sim_e.e == Entity::none()) return;
-    if (agent_type == AgentType::Camera) return;
+    if (agent_type == AgentType::Seeker &&
+            ctx.data().curEpisodeStep < numPrepSteps - 1) {
+        return;
+    }
 
     if (action.l == 1) {
         Vector3 cur_pos = ctx.get<Position>(sim_e.e);
@@ -299,13 +292,12 @@ inline void agentZeroVelSystem(Engine &,
 inline void collectObservationsSystem(Engine &ctx,
                                       Entity agent_e,
                                       SimEntity sim_e,
-                                      AgentType agent_type,
                                       RelativeAgentObservations &agent_obs,
                                       RelativeBoxObservations &box_obs,
                                       RelativeRampObservations &ramp_obs,
                                       AgentPrepCounter &prep_counter)
 {
-    if (sim_e.e == Entity::none() || agent_type == AgentType::Camera) {
+    if (sim_e.e == Entity::none()) {
         return;
     }
 
@@ -420,7 +412,7 @@ inline void computeVisibilitySystem(Engine &ctx,
                                     BoxVisibilityMasks &box_vis,
                                     RampVisibilityMasks &ramp_vis)
 {
-    if (sim_e.e == Entity::none() || agent_type == AgentType::Camera) {
+    if (sim_e.e == Entity::none()) {
         return;
     }
 
@@ -807,7 +799,7 @@ void Sim::setupTasks(TaskGraphManager &taskgraph_mgr, const Config &cfg)
 
 #ifdef MADRONA_GPU_MODE
     // FIXME: these 3 need to be compacted, but sorting is unnecessary
-    auto sort_dyn_agent = queueSortByWorld<DynAgent>(builder, {sort_cam_agent});
+    auto sort_dyn_agent = queueSortByWorld<DynAgent>(builder, {clear_tmp});
     auto sort_objects = queueSortByWorld<DynamicObject>(builder, {sort_dyn_agent});
     auto sort_agent_iface =
         queueSortByWorld<AgentInterface>(builder, {sort_objects});
@@ -828,7 +820,6 @@ void Sim::setupTasks(TaskGraphManager &taskgraph_mgr, const Config &cfg)
         collectObservationsSystem,
             Entity,
             SimEntity,
-            AgentType,
             RelativeAgentObservations,
             RelativeBoxObservations,
             RelativeRampObservations,
