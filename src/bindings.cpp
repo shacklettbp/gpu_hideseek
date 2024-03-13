@@ -26,6 +26,7 @@ NB_MODULE(gpu_hideseek, m) {
                             int64_t gpu_id,
                             int64_t num_worlds,
                             bool auto_reset,
+                            uint32_t max_agents_per_world,
                             bool enable_batch_render,
                             int64_t batch_render_width,
                             int64_t batch_render_height) {
@@ -34,6 +35,7 @@ NB_MODULE(gpu_hideseek, m) {
                 .gpuID = (int)gpu_id,
                 .numWorlds = (uint32_t)num_worlds,
                 .autoReset = auto_reset,
+                .maxAgentsPerWorld = max_agents_per_world,
                 .enableBatchRenderer = enable_batch_render,
                 .batchRenderViewWidth = (uint32_t)batch_render_width,
                 .batchRenderViewHeight = (uint32_t)batch_render_height,
@@ -41,7 +43,8 @@ NB_MODULE(gpu_hideseek, m) {
         }, nb::arg("exec_mode"),
            nb::arg("gpu_id"),
            nb::arg("num_worlds"),
-           nb::arg("auto_reset") = false,
+           nb::arg("auto_reset"),
+           nb::arg("max_agents_per_world"),
            nb::arg("enable_batch_renderer") = false,
            nb::arg("batch_render_width") = 64,
            nb::arg("batch_render_height") = 64)

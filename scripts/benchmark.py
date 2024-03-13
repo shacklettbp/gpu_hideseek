@@ -17,9 +17,8 @@ sim = gpu_hideseek.HideAndSeekSimulator(
         exec_mode = gpu_hideseek.madrona.ExecMode.CUDA,
         gpu_id = 0,
         num_worlds = num_worlds,
-        render_width = 0,
-        render_height = 0,
         auto_reset = True,
+        max_agents_per_world = 5,
 )
 
 actions = sim.action_tensor().to_torch()
