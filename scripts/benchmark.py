@@ -20,6 +20,7 @@ sim = gpu_hideseek.HideAndSeekSimulator(
         auto_reset = True,
         max_agents_per_world = 5,
 )
+sim.init()
 
 actions = sim.action_tensor().to_torch()
 resets = sim.reset_tensor().to_torch()

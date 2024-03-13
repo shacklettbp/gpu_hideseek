@@ -48,6 +48,7 @@ NB_MODULE(gpu_hideseek, m) {
            nb::arg("enable_batch_renderer") = false,
            nb::arg("batch_render_width") = 64,
            nb::arg("batch_render_height") = 64)
+        .def("init", &Manager::init)
         .def("step", &Manager::step)
         .def("reset_tensor", &Manager::resetTensor)
         .def("done_tensor", &Manager::doneTensor)

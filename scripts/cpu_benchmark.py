@@ -27,6 +27,7 @@ sim = gpu_hideseek.HideAndSeekSimulator(
         debug_compile = False,
         auto_reset = True,
 )
+sim.init()
 
 #rgb_observations = sim.rgb_tensor().to_torch()
 

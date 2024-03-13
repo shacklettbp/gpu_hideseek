@@ -32,6 +32,7 @@ public:
     MGR_EXPORT Manager(const Config &cfg);
     MGR_EXPORT ~Manager();
 
+    MGR_EXPORT void init();
     MGR_EXPORT void step();
 
     MGR_EXPORT madrona::py::Tensor resetTensor() const;

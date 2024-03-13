@@ -805,12 +805,9 @@ static TaskGraphNodeID resetTasks(TaskGraphBuilder &builder,
     auto clear_tmp = builder.addToGraph<ResetTmpAllocNode>({reset_sys});
 
 #ifdef MADRONA_GPU_MODE
-    // FIXME: these 3 need to be compacted, but sorting is unnecessary
     auto sort_dyn_agent = queueSortByWorld<DynAgent>(builder, {clear_tmp});
     auto sort_objects = queueSortByWorld<DynamicObject>(builder, {sort_dyn_agent});
-    auto sort_agent_iface =
-        queueSortByWorld<AgentInterface>(builder, {sort_objects});
-    auto reset_finish = sort_agent_iface;
+    auto reset_finish = sort_objects;
 #else
     auto reset_finish = clear_tmp;
 #endif
@@ -888,15 +885,34 @@ static void observationsTasks(const Config &cfg,
     (void)global_positions_debug;
 }
 
-
-void Sim::setupTasks(TaskGraphManager &taskgraph_mgr, const Config &cfg)
+static void setupInitTasks(TaskGraphBuilder &builder, const Config &cfg)
 {
-    auto &builder = taskgraph_mgr.init(TaskGraphID::Step);
+#ifdef MADRONA_GPU_MODE
+    // Agent interfaces only need to be sorted during init
+    auto sort_agent_iface =
+        queueSortByWorld<AgentInterface>(builder, {});
+#endif
 
+    auto resets = resetTasks(builder, {
+#ifdef MADRONA_GPU_MODE
+        sort_agent_iface
+#endif
+    });
+    observationsTasks(cfg, builder, {resets});
+}
+
+static void setupStepTasks(TaskGraphBuilder &builder, const Config &cfg)
+{
     auto sim_done = processActionsAndPhysicsTasks(builder);
     auto rewards_and_dones = rewardsAndDonesTasks(builder, {sim_done});
     auto resets = resetTasks(builder, {rewards_and_dones});
     observationsTasks(cfg, builder, {resets});
+}
+
+void Sim::setupTasks(TaskGraphManager &taskgraph_mgr, const Config &cfg)
+{
+    setupInitTasks(taskgraph_mgr.init(TaskGraphID::Init), cfg);
+    setupStepTasks(taskgraph_mgr.init(TaskGraphID::Step), cfg);
 }
 
 Sim::Sim(Engine &ctx,
@@ -946,10 +962,8 @@ Sim::Sim(Engine &ctx,
 
     assert(maxAgentsPerWorld <= consts::maxAgents && maxAgentsPerWorld > 0);
 
-    resetEnvironment(ctx);
-    generateEnvironment(ctx, 1, 3, 2);
     ctx.singleton<WorldReset>() = {
-        .resetLevel = 0,
+        .resetLevel = 1,
         .numHiders = 3,
         .numSeekers = 2,
     };

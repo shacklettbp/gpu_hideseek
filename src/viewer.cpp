@@ -150,6 +150,7 @@ int main(int argc, char *argv[])
         .extRenderAPI = wm.gpuAPIManager().backend(),
         .extRenderDev = render_gpu.device(),
     });
+    mgr.init();
 
     math::Quat initial_camera_rotation =
         (math::Quat::angleAxis(-math::pi / 2.f, math::up) *
@@ -159,7 +160,7 @@ int main(int argc, char *argv[])
         .numWorlds = num_worlds,
         .simTickRate = start_frozen ? 0_u32 : 25_u32,
         .cameraMoveSpeed = 10.f,
-        .cameraPosition = { 0, 15.f, 30 },
+        .cameraPosition = { 0.f, 0.f, 40 },
         .cameraRotation = initial_camera_rotation,
     });
 

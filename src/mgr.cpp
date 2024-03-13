@@ -106,14 +106,42 @@ struct Manager::CPUImpl : Manager::Impl {
         TaskGraphExecutor<Engine, Sim, GPUHideSeek::Config, WorldInit>;
 
     TaskGraphT cpuExec;
+
+    inline void init();
+    inline void step();
 };
 
 #ifdef MADRONA_CUDA_SUPPORT
 struct Manager::CUDAImpl : Manager::Impl {
     MWCudaExecutor mwGPU;
     MWCudaLaunchGraph stepGraph;
+
+    inline void init();
+    inline void step();
 };
 #endif
+
+void Manager::CPUImpl::init()
+{
+    cpuExec.runTaskGraph(TaskGraphID::Init);
+}
+
+void Manager::CPUImpl::step()
+{
+    cpuExec.runTaskGraph(TaskGraphID::Step);
+}
+
+void Manager::CUDAImpl::init()
+{
+    MWCudaLaunchGraph init_graph = mwGPU.buildLaunchGraph(TaskGraphID::Init);
+
+    mwGPU.run(init_graph);
+}
+
+void Manager::CUDAImpl::step()
+{
+    mwGPU.run(stepGraph);
+}
 
 static void loadPhysicsObjects(PhysicsLoader &loader)
 {
@@ -509,13 +537,7 @@ Tensor Manager::Impl::exportStateTensor(EnumT slot,
 
 Manager::Manager(const Config &cfg)
     : impl_(Impl::init(cfg))
-{
-    for (int32_t i = 0; i < (int32_t)cfg.numWorlds; i++) {
-        triggerReset(i, 1, 3, 2);
-    }
-
-    step();
-}
+{}
 
 Manager::~Manager() {
     switch (impl_->cfg.execMode) {
@@ -530,18 +552,38 @@ Manager::~Manager() {
     }
 }
 
+void Manager::init()
+{
+    switch (impl_->cfg.execMode) {
+    case ExecMode::CUDA: {
+#ifdef MADRONA_CUDA_SUPPORT
+        static_cast<CUDAImpl *>(impl_)->init();
+#endif
+    } break;
+    case ExecMode::CPU: {
+        static_cast<CPUImpl *>(impl_)->init();
+    } break;
+    }
+
+    if (impl_->renderMgr.has_value()) {
+        impl_->renderMgr->readECS();
+    }
+
+    if (impl_->cfg.enableBatchRenderer) {
+        impl_->renderMgr->batchRender();
+    }
+}
+
 void Manager::step()
 {
     switch (impl_->cfg.execMode) {
     case ExecMode::CUDA: {
 #ifdef MADRONA_CUDA_SUPPORT
-        auto gpu_impl = static_cast<CUDAImpl *>(impl_);
-        gpu_impl->mwGPU.run(gpu_impl->stepGraph);
+        static_cast<CUDAImpl *>(impl_)->step();
 #endif
     } break;
     case ExecMode::CPU: {
-        auto cpu_impl = static_cast<CPUImpl *>(impl_);
-        cpu_impl->cpuExec.run();
+        static_cast<CPUImpl *>(impl_)->step();
     } break;
     }
 
