@@ -17,12 +17,12 @@ constexpr inline CountT numPrepSteps = 96;
 constexpr inline CountT episodeLen = 240;
 
 void Sim::registerTypes(ECSRegistry &registry,
-                        const Config &)
+                        const Config &cfg)
 {
     base::registerTypes(registry);
     phys::RigidBodyPhysicsSystem::registerTypes(registry);
 
-    RenderingSystem::registerTypes(registry);
+    RenderingSystem::registerTypes(registry, cfg.renderBridge);
 
     registry.registerComponent<AgentPrepCounter>();
     registry.registerComponent<Action>();
@@ -251,10 +251,6 @@ inline void actionSystem(Engine &ctx, Action &action, SimEntity sim_e,
                 if (owner == OwnerTeam::None &&
                     response_type == ResponseType::Dynamic) {
 
-                    Entity constraint_entity =
-                        ctx.makeEntity<ConstraintData>();
-                    grab_data.constraintEntity = constraint_entity;
-
                     Vector3 other_pos = ctx.get<Position>(grab_entity);
                     Quat other_rot = ctx.get<Rotation>(grab_entity);
 
@@ -269,8 +265,8 @@ inline void actionSystem(Engine &ctx, Action &action, SimEntity sim_e,
 
                     float separation = hit_t - 1.25f;
 
-                    ctx.get<JointConstraint>(constraint_entity) =
-                        JointConstraint::setupFixed(sim_e.e, grab_entity,
+                    grab_data.constraintEntity = 
+                        JointConstraint::setupFixed(ctx, sim_e.e, grab_entity,
                                                     attach1, attach2,
                                                     r1, r2, separation);
 
@@ -290,7 +286,7 @@ inline void actionSystem(Engine &ctx, Action &action, SimEntity sim_e,
 
 inline void agentZeroVelSystem(Engine &,
                                Velocity &vel,
-                               viz::VizCamera &)
+                               GrabData &)
 {
     vel.linear.x = 0;
     vel.linear.y = 0;
@@ -774,7 +770,7 @@ void Sim::setupTasks(TaskGraphManager &taskgraph_mgr, const Config &cfg)
         {action_sys}, numPhysicsSubsteps);
 
     auto agent_zero_vel = builder.addToGraph<ParallelForNode<Engine,
-        agentZeroVelSystem, Velocity, viz::VizCamera>>(
+        agentZeroVelSystem, Velocity, GrabData>>(
             {substep_sys});
 
     auto sim_done = agent_zero_vel;
@@ -797,22 +793,22 @@ void Sim::setupTasks(TaskGraphManager &taskgraph_mgr, const Config &cfg)
     auto reset_sys = builder.addToGraph<ParallelForNode<Engine,
         resetSystem, WorldReset>>({output_rewards});
 
-    auto clearTmp = builder.addToGraph<ResetTmpAllocNode>({reset_sys});
+    auto clear_tmp = builder.addToGraph<ResetTmpAllocNode>({reset_sys});
 
 #ifdef MADRONA_GPU_MODE
     // FIXME: these 3 need to be compacted, but sorting is unnecessary
-    auto sort_cam_agent = queueSortByWorld<CameraAgent>(builder, {clearTmp});
+    auto sort_cam_agent = queueSortByWorld<CameraAgent>(builder, {clear_tmp});
     auto sort_dyn_agent = queueSortByWorld<DynAgent>(builder, {sort_cam_agent});
     auto sort_objects = queueSortByWorld<DynamicObject>(builder, {sort_dyn_agent});
     auto sort_agent_iface =
         queueSortByWorld<AgentInterface>(builder, {sort_objects});
     auto reset_finish = sort_agent_iface;
 #else
-    auto reset_finish = clearTmp;
+    auto reset_finish = clear_tmp;
 #endif
 
     if (cfg.renderBridge) {
-        RenderingSystem::setupTasks(builder, deps);
+        RenderingSystem::setupTasks(builder, {reset_finish});
     }
 
 #ifdef MADRONA_GPU_MODE

@@ -56,8 +56,8 @@ enum class TaskGraphID : uint32_t {
 
 struct Config {
     bool autoReset;
-    const madrona::render::RenderECSBridge *renderBridge;
-    const madrona::phys::ObjectManager *rigidBodyObjMgr;
+    madrona::render::RenderECSBridge *renderBridge;
+    madrona::phys::ObjectManager *rigidBodyObjMgr;
 };
 
 class Engine;
@@ -180,6 +180,9 @@ struct Seed {
 static_assert(sizeof(Action) == 5 * sizeof(int32_t));
 
 struct AgentInterface : public madrona::Archetype<
+    Position,
+    Rotation,
+    Scale,
     SimEntity,
     AgentPrepCounter,
     Action,
@@ -266,6 +269,7 @@ struct Sim : public madrona::WorldBase {
 class Engine : public ::madrona::CustomContext<Engine, Sim> {
     using CustomContext::CustomContext;
 
+public:
     // These are convenience helpers for creating renderable
     // entities when rendering isn't necessarily enabled
     template <typename ArchetypeT>
