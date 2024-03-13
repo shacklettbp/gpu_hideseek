@@ -5,7 +5,7 @@ namespace GPUHideSeek {
 madrona::Entity makeDynObject(Engine &ctx,
                      madrona::math::Vector3 pos,
                      madrona::math::Quat rot,
-                     int32_t obj_id,
+                     SimObject obj_id,
                      madrona::phys::ResponseType response_type,
                      OwnerTeam owner_team,
                      madrona::math::Diag3x3 scale)
@@ -17,9 +17,10 @@ madrona::Entity makeDynObject(Engine &ctx,
     ctx.get<Position>(e) = pos;
     ctx.get<Rotation>(e) = rot;
     ctx.get<Scale>(e) = scale;
-    ctx.get<ObjectID>(e) = ObjectID { obj_id };
+    ctx.get<ObjectID>(e) = ObjectID { (int32_t)obj_id };
     ctx.get<phys::broadphase::LeafID>(e) =
-        phys::RigidBodyPhysicsSystem::registerEntity(ctx, e, ObjectID {obj_id});
+        phys::RigidBodyPhysicsSystem::registerEntity(
+            ctx, e, ObjectID {(int32_t)obj_id});
     ctx.get<Velocity>(e) = {
         Vector3::zero(),
         Vector3::zero(),

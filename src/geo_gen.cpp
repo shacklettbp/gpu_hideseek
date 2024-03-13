@@ -494,7 +494,7 @@ CountT populateStaticGeometry(Engine &ctx,
         }
 
         obstacles[i] = makeDynObject(
-            ctx, position, Quat::angleAxis(0, {1, 0, 0}), 3, 
+            ctx, position, Quat::angleAxis(0, {1, 0, 0}), SimObject::Wall,
             ResponseType::Static, OwnerTeam::Unownable, scale);
     }
 

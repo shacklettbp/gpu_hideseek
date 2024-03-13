@@ -20,7 +20,7 @@ static Entity makeAgent(Engine &ctx, AgentType agent_type)
         render::RenderingSystem::attachEntityToView(ctx,
                 agent_iface,
                 100.f, 0.001f,
-                1.5f * math::up);
+                0.5f * math::up);
     }
 
     Entity agent = ctx.makeRenderableEntity<T>();
@@ -50,8 +50,8 @@ static Entity makeAgent(Engine &ctx, AgentType agent_type)
 }
 
 static Entity makePlane(Engine &ctx, Vector3 offset, Quat rot) {
-    return makeDynObject(ctx, offset, rot, 1, ResponseType::Static,
-                         OwnerTeam::Unownable);
+    return makeDynObject(ctx, offset, rot, SimObject::Plane,
+                         ResponseType::Static, OwnerTeam::Unownable);
 }
 
 // Emergent tool use configuration:
@@ -130,7 +130,7 @@ static void generateTrainingEnvironment(Engine &ctx,
             // Check overlap with all other entities
             if (checkOverlap(aabb) || rejections == max_rejections) {
                 ctx.data().boxes[i] = all_entities[num_entities++] =
-                    makeDynObject(ctx, pos, rot, 6);
+                    makeDynObject(ctx, pos, rot, SimObject::Box);
 
                 ctx.data().boxSizes[i] = { 8, 1.5 };
                 ctx.data().boxRotations[i] = box_rotation;
@@ -172,7 +172,7 @@ static void generateTrainingEnvironment(Engine &ctx,
                 CountT box_idx = i + num_elongated;
 
                 ctx.data().boxes[box_idx] = all_entities[num_entities++] =
-                    makeDynObject(ctx, pos, rot, 2);
+                    makeDynObject(ctx, pos, rot, SimObject::Cube);
 
                 ctx.data().boxSizes[box_idx] = { 2, 2 };
                 ctx.data().boxRotations[box_idx] = box_rotation;
@@ -207,7 +207,7 @@ static void generateTrainingEnvironment(Engine &ctx,
 
             if (checkOverlap(aabb) || rejections == max_rejections) {
                 ctx.data().ramps[i] = all_entities[num_entities++] =
-                    makeDynObject(ctx, pos, rot, 5);
+                    makeDynObject(ctx, pos, rot, SimObject::Ramp);
                 ctx.data().rampRotations[i] = ramp_rotation;
                 break;
             }
@@ -223,7 +223,7 @@ static void generateTrainingEnvironment(Engine &ctx,
         ctx.get<Position>(agent) = pos;
         ctx.get<Rotation>(agent) = rot;
         ctx.get<Scale>(agent) = Diag3x3 { 1, 1, 1 };
-        ObjectID agent_obj_id = ObjectID { 4 };
+        ObjectID agent_obj_id = ObjectID { (uint32_t)SimObject::Agent };
         ctx.get<ObjectID>(agent) = agent_obj_id;
         ctx.get<phys::broadphase::LeafID>(agent) =
             phys::RigidBodyPhysicsSystem::registerEntity(ctx, agent,
@@ -332,7 +332,7 @@ static void singleCubeLevel(Engine &ctx, Vector3 pos, Quat rot)
 
     CountT total_entities = 0;
 
-    Entity test_cube = makeDynObject(ctx, pos, rot, 2);
+    Entity test_cube = makeDynObject(ctx, pos, rot, SimObject::Cube);
     all_entities[total_entities++] = test_cube;
 
     all_entities[total_entities++] =
@@ -372,7 +372,7 @@ static void level4(Engine &ctx)
     //all_entities[total_entities++] = test_cube;
 
     all_entities[total_entities++] =
-        makeDynObject(ctx, pos + Vector3 {0, 0, 5}, rot, 6,
+        makeDynObject(ctx, pos + Vector3 {0, 0, 5}, rot, SimObject::Box,
                       ResponseType::Dynamic, OwnerTeam::None,
                       {1, 1, 1});
 
@@ -408,7 +408,7 @@ static void level5(Engine &ctx)
 
         const auto rot = Quat::angleAxis(0, {0, 0, 1});
 
-        all_entities[i] = makeDynObject(ctx, pos, rot, 2);
+        all_entities[i] = makeDynObject(ctx, pos, rot, SimObject::Cube);
     }
 
     CountT total_entities = num_dyn_entities;
@@ -439,12 +439,12 @@ static void level6(Engine &ctx)
 
     all_entities[num_entities++] =
         makeDynObject(
-            ctx, {0, 0, 0}, Quat::angleAxis(0, {1, 0, 0}), 3,
+            ctx, {0, 0, 0}, Quat::angleAxis(0, {1, 0, 0}), SimObject::Wall,
             ResponseType::Static, OwnerTeam::Unownable, {10.f, 0.2f, 1.f} );
 
     all_entities[num_entities++] =
         makeDynObject(
-            ctx, {0, -5, 1}, Quat::angleAxis(0, {1, 0, 0}), 2,
+            ctx, {0, -5, 1}, Quat::angleAxis(0, {1, 0, 0}), SimObject::Cube,
             ResponseType::Dynamic, OwnerTeam::None, {1.f, 1.f, 1.f} );
 
     auto makeDynAgent = [&](Vector3 pos, Quat rot, bool is_hider) {
@@ -453,7 +453,7 @@ static void level6(Engine &ctx)
         ctx.get<Position>(agent) = pos;
         ctx.get<Rotation>(agent) = rot;
         ctx.get<Scale>(agent) = Diag3x3 { 1, 1, 1 };
-        ObjectID agent_obj_id = ObjectID { 4 };
+        ObjectID agent_obj_id = ObjectID { (uint32_t)SimObject::Agent };
         ctx.get<ObjectID>(agent) = agent_obj_id;
         ctx.get<phys::broadphase::LeafID>(agent) =
             phys::RigidBodyPhysicsSystem::registerEntity(ctx, agent,
@@ -493,10 +493,11 @@ static void level7(Engine &ctx)
 
     CountT total_entities = 0;
 
-    all_entities[total_entities++] =  makeDynObject(ctx, pos, rot, 2);
+    all_entities[total_entities++] = 
+        makeDynObject(ctx, pos, rot, SimObject::Cube);
 
     all_entities[total_entities++] =
-        makeDynObject(ctx, pos + Vector3 {0, 0, 5}, rot, 2,
+        makeDynObject(ctx, pos + Vector3 {0, 0, 5}, rot, SimObject::Cube,
                       ResponseType::Dynamic, OwnerTeam::None,
                       {1, 1, 1});
 
@@ -524,7 +525,7 @@ static void level8(Engine &ctx)
         Quat::angleAxis(toRadians(45), {1, 0, 0})).normalize();
 
     Entity ramp_dyn = all_entities[total_entities++] =
-        makeDynObject(ctx, ramp_pos, ramp_rot, 5);
+        makeDynObject(ctx, ramp_pos, ramp_rot, SimObject::Ramp);
 
     ctx.get<Velocity>(ramp_dyn).linear = {0, 0, -30};
 
@@ -533,7 +534,7 @@ static void level8(Engine &ctx)
                       {-0.5, -0.5, 1},
                       (Quat::angleAxis(toRadians(-90), {1, 0, 0 }) *
                           Quat::angleAxis(pi, {0, 1, 0 })).normalize(),
-                      5,
+                      SimObject::Ramp,
                       ResponseType::Static, OwnerTeam::None,
                       {1, 1, 1});
 
