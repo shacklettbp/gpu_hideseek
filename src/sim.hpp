@@ -286,6 +286,7 @@ struct Sim : public madrona::WorldBase {
     int32_t numHiders;
     Entity seekers[3];
     int32_t numSeekers;
+    CountT numActiveAgents;
 
     Entity *obstacles;
     int32_t numObstacles;
@@ -296,7 +297,6 @@ struct Sim : public madrona::WorldBase {
     float rampRotations[consts::maxRamps];
     CountT numActiveBoxes;
     CountT numActiveRamps;
-    CountT numActiveAgents;
 
     CountT curEpisodeStep;
 

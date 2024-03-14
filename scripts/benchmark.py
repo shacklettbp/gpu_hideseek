@@ -17,8 +17,12 @@ sim = gpu_hideseek.HideAndSeekSimulator(
         exec_mode = gpu_hideseek.madrona.ExecMode.CUDA,
         gpu_id = 0,
         num_worlds = num_worlds,
-        auto_reset = True,
-        max_agents_per_world = 5,
+        sim_flags = gpu_hideseek.SimFlags.Default,
+        rand_seed = 10,
+        min_hiders = 3,
+        max_hiders = 3,
+        min_seekers = 2,
+        max_seekers = 2,
 )
 sim.init()
 
