@@ -6,9 +6,9 @@
 #include <madrona/components.hpp>
 #include <madrona/physics.hpp>
 #include <madrona/render/ecs.hpp>
+#include <madrona/rand.hpp>
 
-#include "init.hpp"
-#include "rng.hpp"
+#include "sim_flags.hpp"
 
 namespace GPUHideSeek {
 
@@ -22,6 +22,12 @@ using madrona::phys::Velocity;
 using madrona::phys::ResponseType;
 using madrona::phys::ExternalForce;
 using madrona::phys::ExternalTorque;
+using madrona::math::Vector2;
+using madrona::math::Vector3;
+using madrona::math::Quat;
+using madrona::math::Diag3x3;
+using madrona::RNG;
+using madrona::RandKey;
 
 namespace consts {
 
@@ -69,8 +75,12 @@ enum class SimObject : uint32_t {
 };
 
 struct Config {
-    bool autoReset;
-    uint32_t maxAgentsPerWorld;
+    SimFlags simFlags;
+    RandKey initRandKey;
+    int32_t minHiders;
+    int32_t maxHiders;
+    int32_t minSeekers;
+    int32_t maxSeekers;
     madrona::phys::ObjectManager *rigidBodyObjMgr;
     const madrona::render::RenderECSBridge *renderBridge;
 };
@@ -79,8 +89,6 @@ class Engine;
 
 struct WorldReset {
     int32_t resetLevel;
-    int32_t numHiders;
-    int32_t numSeekers;
 };
 
 struct AgentPrepCounter {
@@ -137,26 +145,26 @@ struct AgentActiveMask {
 };
 
 struct GlobalDebugPositions {
-    madrona::math::Vector2 boxPositions[consts::maxBoxes];
-    madrona::math::Vector2 rampPositions[consts::maxRamps];
-    madrona::math::Vector2 agentPositions[consts::maxAgents];
+    Vector2 boxPositions[consts::maxBoxes];
+    Vector2 rampPositions[consts::maxRamps];
+    Vector2 agentPositions[consts::maxAgents];
 };
 
 struct AgentObservation {
-    madrona::math::Vector2 pos;
-    madrona::math::Vector2 vel;
+    Vector2 pos;
+    Vector2 vel;
 };
 
 struct BoxObservation {
-    madrona::math::Vector2 pos;
-    madrona::math::Vector2 vel;
-    madrona::math::Vector2 boxSize;
+    Vector2 pos;
+    Vector2 vel;
+    Vector2 boxSize;
     float boxRotation;
 };
 
 struct RampObservation {
-    madrona::math::Vector2 pos;
-    madrona::math::Vector2 vel;
+    Vector2 pos;
+    Vector2 vel;
     float rampRotation;
 };
 
@@ -189,7 +197,7 @@ struct Lidar {
 };
 
 struct Seed {
-    int32_t seed;
+    RandKey key;
 };
 
 struct Reward {
@@ -241,6 +249,16 @@ struct DynAgent : public madrona::Archetype<
     madrona::render::Renderable
 > {};
 
+struct WorldInit {};
+
+struct LoadCheckpoint {
+    int32_t load;
+};
+
+struct Checkpoint {
+    RandKey initRNDCounter;
+};
+
 struct Sim : public madrona::WorldBase {
     static void registerTypes(madrona::ECSRegistry &registry,
                               const Config &cfg);
@@ -252,7 +270,14 @@ struct Sim : public madrona::WorldBase {
         const Config &cfg,
         const WorldInit &init);
 
-    EpisodeManager *episodeMgr;
+    SimFlags simFlags;
+
+    RandKey initRandKey;
+    // Current episode within this world
+    uint32_t curWorldEpisode;
+    // The random seed that generated this world.
+    RandKey curEpisodeRNDCounter;
+    // Random number generator state
     RNG rng;
 
     Entity agentInterfaces[consts::maxAgents];
@@ -265,7 +290,7 @@ struct Sim : public madrona::WorldBase {
     Entity *obstacles;
     int32_t numObstacles;
     Entity boxes[consts::maxBoxes];
-    madrona::math::Vector2 boxSizes[consts::maxBoxes];
+    Vector2 boxSizes[consts::maxBoxes];
     float boxRotations[consts::maxBoxes];
     Entity ramps[consts::maxRamps];
     float rampRotations[consts::maxRamps];
@@ -274,13 +299,14 @@ struct Sim : public madrona::WorldBase {
     CountT numActiveAgents;
 
     CountT curEpisodeStep;
-    CountT minEpisodeEntities;
-    CountT maxEpisodeEntities;
 
-    uint32_t curEpisodeSeed;
     bool enableRender;
-    bool autoReset;
-    uint32_t maxAgentsPerWorld;
+
+    int32_t minHiders;
+    int32_t maxHiders;
+    int32_t minSeekers;
+    int32_t maxSeekers;
+    int32_t maxAgentsPerWorld;
 
     madrona::AtomicFloat hiderTeamReward {0};
 };

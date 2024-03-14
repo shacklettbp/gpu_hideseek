@@ -75,7 +75,7 @@ static inline Optional<render::RenderManager> initRenderManager(
         .agentViewWidth = mgr_cfg.batchRenderViewWidth,
         .agentViewHeight = mgr_cfg.batchRenderViewHeight,
         .numWorlds = mgr_cfg.numWorlds,
-        .maxViewsPerWorld = consts::maxAgents,
+        .maxViewsPerWorld = mgr_cfg.maxHiders + mgr_cfg.maxSeekers,
         .maxInstancesPerWorld = 1000,
         .execMode = mgr_cfg.execMode,
         .voxelCfg = {},
@@ -84,14 +84,14 @@ static inline Optional<render::RenderManager> initRenderManager(
 
 struct Manager::Impl {
     Config cfg;
+    int32_t maxAgentsPerWorld;
     PhysicsLoader physicsLoader;
     Optional<RenderGPUState> renderGPUState;
     Optional<render::RenderManager> renderMgr;
-    EpisodeManager *episodeMgr;
     WorldReset *resetsPointer;
     Action *actionsPointer;
 
-    static inline Impl * init(const Config &cfg);
+    static inline Impl * make(const Config &cfg);
 
 
     template <EnumType EnumT>
@@ -343,10 +343,8 @@ static void loadRenderObjects(render::RenderManager &render_mgr)
     });
 }
 
-Manager::Impl * Manager::Impl::init(const Config &cfg)
+Manager::Impl * Manager::Impl::make(const Config &cfg)
 {
-    HostEventLogging(HostEvent::initStart);
-
     std::array<char, 1024> import_err;
     auto render_assets = imp::ImportedAssets::importFromDisk({
         (std::filesystem::path(DATA_DIR) / "sphere.obj").string().c_str(),
@@ -363,17 +361,19 @@ Manager::Impl * Manager::Impl::init(const Config &cfg)
     }
 
     GPUHideSeek::Config app_cfg;
-    app_cfg.autoReset = cfg.autoReset;
-    app_cfg.maxAgentsPerWorld = cfg.maxAgentsPerWorld;
+    app_cfg.simFlags = cfg.simFlags;
+    app_cfg.initRandKey = rand::initKey(cfg.randSeed);
+    app_cfg.minHiders = cfg.minHiders;
+    app_cfg.maxHiders = cfg.maxHiders;
+    app_cfg.minSeekers = cfg.minSeekers;
+    app_cfg.maxSeekers = cfg.maxSeekers;
+
+    int32_t max_agents_per_world = cfg.maxHiders + cfg.maxSeekers;
 
     switch (cfg.execMode) {
     case ExecMode::CUDA: {
 #ifdef MADRONA_CUDA_SUPPORT
         CUcontext cu_ctx = MWCudaExecutor::initCUDA(cfg.gpuID);
-
-        EpisodeManager *episode_mgr = 
-            (EpisodeManager *)cu::allocGPU(sizeof(EpisodeManager));
-        REQ_CUDA(cudaMemset(episode_mgr, 0, sizeof(EpisodeManager)));
 
         PhysicsLoader phys_loader(cfg.execMode, 10);
         loadPhysicsObjects(phys_loader);
@@ -395,14 +395,6 @@ Manager::Impl * Manager::Impl::init(const Config &cfg)
          }
 
         HeapArray<WorldInit> world_inits(cfg.numWorlds);
-
-        for (int64_t i = 0; i < (int64_t)cfg.numWorlds; i++) {
-            world_inits[i] = WorldInit {
-                episode_mgr,
-                0,
-                1,
-            };
-        }
 
         MWCudaExecutor mwgpu_exec({
             .worldInitPtr = world_inits.data(),
@@ -433,10 +425,10 @@ Manager::Impl * Manager::Impl::init(const Config &cfg)
         return new CUDAImpl {
             { 
                 cfg,
+                max_agents_per_world,
                 std::move(phys_loader),
                 std::move(render_gpu_state),
                 std::move(render_mgr),
-                episode_mgr,
                 world_reset_buffer,
                 agent_actions_buffer,
             },
@@ -448,8 +440,6 @@ Manager::Impl * Manager::Impl::init(const Config &cfg)
 #endif
     } break;
     case ExecMode::CPU: {
-        EpisodeManager *episode_mgr = new EpisodeManager { 0 };
-
         PhysicsLoader phys_loader(cfg.execMode, 10);
         loadPhysicsObjects(phys_loader);
 
@@ -471,13 +461,6 @@ Manager::Impl * Manager::Impl::init(const Config &cfg)
 
         HeapArray<WorldInit> world_inits(cfg.numWorlds);
 
-        for (int64_t i = 0; i < (int64_t)cfg.numWorlds; i++) {
-            world_inits[i] = WorldInit {
-                episode_mgr,
-                0, 0,
-            };
-        }
-
         CPUImpl::TaskGraphT cpu_exec {
             ThreadPoolExecutor::Config {
                 .numWorlds = cfg.numWorlds,
@@ -497,10 +480,10 @@ Manager::Impl * Manager::Impl::init(const Config &cfg)
         auto cpu_impl = new CPUImpl {
             { 
                 cfg,
+                max_agents_per_world,
                 std::move(phys_loader),
                 std::move(render_gpu_state),
                 std::move(render_mgr),
-                episode_mgr,
                 world_reset_buffer,
                 agent_actions_buffer,
             },
@@ -536,7 +519,7 @@ Tensor Manager::Impl::exportStateTensor(EnumT slot,
 }
 
 Manager::Manager(const Config &cfg)
-    : impl_(Impl::init(cfg))
+    : impl_(Impl::make(cfg))
 {}
 
 Manager::~Manager() {
@@ -601,7 +584,7 @@ Tensor Manager::resetTensor() const
 {
     return impl_->exportStateTensor(
         ExportID::Reset, TensorElementType::Int32,
-        {impl_->cfg.numWorlds, 3});
+        {impl_->cfg.numWorlds, 1});
 }
 
 Tensor Manager::doneTensor() const
@@ -615,35 +598,35 @@ madrona::py::Tensor Manager::prepCounterTensor() const
 {
     return impl_->exportStateTensor(
         ExportID::PrepCounter, TensorElementType::Int32,
-        {impl_->cfg.numWorlds * impl_->cfg.maxAgentsPerWorld, 1});
+        {impl_->cfg.numWorlds * impl_->maxAgentsPerWorld, 1});
 }
 
 Tensor Manager::actionTensor() const
 {
     return impl_->exportStateTensor(
         ExportID::Action, TensorElementType::Int32,
-        {impl_->cfg.numWorlds * impl_->cfg.maxAgentsPerWorld, 5});
+        {impl_->cfg.numWorlds * impl_->maxAgentsPerWorld, 5});
 }
 
 Tensor Manager::rewardTensor() const
 {
     return impl_->exportStateTensor(
         ExportID::Reward, TensorElementType::Float32,
-        {impl_->cfg.numWorlds * impl_->cfg.maxAgentsPerWorld, 1});
+        {impl_->cfg.numWorlds * impl_->maxAgentsPerWorld, 1});
 }
 
 Tensor Manager::agentTypeTensor() const
 {
     return impl_->exportStateTensor(
         ExportID::AgentType, TensorElementType::Int32,
-        {impl_->cfg.numWorlds * impl_->cfg.maxAgentsPerWorld, 1});
+        {impl_->cfg.numWorlds * impl_->maxAgentsPerWorld, 1});
 }
 
 Tensor Manager::agentMaskTensor() const
 {
     return impl_->exportStateTensor(
         ExportID::AgentMask, TensorElementType::Float32,
-        {impl_->cfg.numWorlds * impl_->cfg.maxAgentsPerWorld, 1});
+        {impl_->cfg.numWorlds * impl_->maxAgentsPerWorld, 1});
 }
 
 
@@ -652,7 +635,7 @@ madrona::py::Tensor Manager::agentDataTensor() const
     return impl_->exportStateTensor(
         ExportID::AgentObsData, TensorElementType::Float32,
         {
-            impl_->cfg.numWorlds * impl_->cfg.maxAgentsPerWorld,
+            impl_->cfg.numWorlds * impl_->maxAgentsPerWorld,
             consts::maxAgents - 1,
             sizeof(AgentObservation) / sizeof(float),
         });
@@ -663,7 +646,7 @@ madrona::py::Tensor Manager::boxDataTensor() const
     return impl_->exportStateTensor(
         ExportID::BoxObsData, TensorElementType::Float32,
         {
-            impl_->cfg.numWorlds * impl_->cfg.maxAgentsPerWorld,
+            impl_->cfg.numWorlds * impl_->maxAgentsPerWorld,
             consts::maxBoxes,
             sizeof(BoxObservation) / sizeof(float),
         });
@@ -674,7 +657,7 @@ madrona::py::Tensor Manager::rampDataTensor() const
     return impl_->exportStateTensor(
         ExportID::RampObsData, TensorElementType::Float32,
         {
-            impl_->cfg.numWorlds * impl_->cfg.maxAgentsPerWorld,
+            impl_->cfg.numWorlds * impl_->maxAgentsPerWorld,
             consts::maxRamps,
             sizeof(RampObservation) / sizeof(float),
         });
@@ -685,7 +668,7 @@ madrona::py::Tensor Manager::visibleAgentsMaskTensor() const
     return impl_->exportStateTensor(
         ExportID::AgentVisMasks, TensorElementType::Float32,
         {
-            impl_->cfg.numWorlds * impl_->cfg.maxAgentsPerWorld,
+            impl_->cfg.numWorlds * impl_->maxAgentsPerWorld,
             consts::maxAgents - 1,
             1,
         });
@@ -696,7 +679,7 @@ madrona::py::Tensor Manager::visibleBoxesMaskTensor() const
     return impl_->exportStateTensor(
         ExportID::BoxVisMasks, TensorElementType::Float32,
         {
-            impl_->cfg.numWorlds * impl_->cfg.maxAgentsPerWorld,
+            impl_->cfg.numWorlds * impl_->maxAgentsPerWorld,
             consts::maxBoxes,
             1,
         });
@@ -707,7 +690,7 @@ madrona::py::Tensor Manager::visibleRampsMaskTensor() const
     return impl_->exportStateTensor(
         ExportID::RampVisMasks, TensorElementType::Float32,
         {
-            impl_->cfg.numWorlds * impl_->cfg.maxAgentsPerWorld,
+            impl_->cfg.numWorlds * impl_->maxAgentsPerWorld,
             consts::maxRamps,
             1,
         });
@@ -718,7 +701,7 @@ madrona::py::Tensor Manager::lidarTensor() const
     return impl_->exportStateTensor(
         ExportID::Lidar, TensorElementType::Float32,
         {
-            impl_->cfg.numWorlds * impl_->cfg.maxAgentsPerWorld,
+            impl_->cfg.numWorlds * impl_->maxAgentsPerWorld,
             30,
         });
 }
@@ -728,8 +711,8 @@ madrona::py::Tensor Manager::seedTensor() const
     return impl_->exportStateTensor(
         ExportID::Seed, TensorElementType::Int32,
         {
-            impl_->cfg.numWorlds * impl_->cfg.maxAgentsPerWorld,
-            1,
+            impl_->cfg.numWorlds * impl_->maxAgentsPerWorld,
+            sizeof(Seed) / sizeof(int32_t),
         });
 }
 
@@ -750,7 +733,7 @@ Tensor Manager::depthTensor() const
     const float *depth_ptr = impl_->renderMgr->batchRendererDepthOut();
 
     return Tensor((void *)depth_ptr, TensorElementType::Float32, {
-        impl_->cfg.numWorlds * impl_->cfg.maxAgentsPerWorld,
+        impl_->cfg.numWorlds * impl_->maxAgentsPerWorld,
         impl_->cfg.batchRenderViewHeight,
         impl_->cfg.batchRenderViewWidth,
         1,
@@ -762,20 +745,17 @@ Tensor Manager::rgbTensor() const
     const uint8_t *rgb_ptr = impl_->renderMgr->batchRendererRGBOut();
 
     return Tensor((void *)rgb_ptr, TensorElementType::UInt8, {
-        impl_->cfg.numWorlds * impl_->cfg.maxAgentsPerWorld,
+        impl_->cfg.numWorlds * impl_->maxAgentsPerWorld,
         impl_->cfg.batchRenderViewHeight,
         impl_->cfg.batchRenderViewWidth,
         4,
     }, impl_->cfg.gpuID);
 }
 
-void Manager::triggerReset(CountT world_idx, CountT level_idx,
-                           CountT num_hiders, CountT num_seekers)
+void Manager::triggerReset(CountT world_idx, CountT level_idx)
 {
     WorldReset reset {
         (int32_t)level_idx,
-        (int32_t)num_hiders,
-        (int32_t)num_seekers,
     };
 
     auto *reset_ptr = impl_->resetsPointer + world_idx;

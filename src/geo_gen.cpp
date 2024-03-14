@@ -44,8 +44,7 @@ private:
 
 static inline float randomFloat(RNG &rng)
 {
-    // return (float)rand() / (float)RAND_MAX;
-    return rng.rand();
+    return rng.sampleUniform();
 }
 
 struct Wall {
@@ -119,7 +118,7 @@ struct WallOperationSelection {
 
     // How many can we chose left
     WallOperation select(int *counts, RNG &rng) {
-        int opIdx = rng.u32Rand() % selectionSize;
+        int opIdx = rng.sampleI32(0, selectionSize);
         WallOperation op = operations[opIdx];
 
         --counts[op];
@@ -181,7 +180,8 @@ int findAnotherWall(
 
     if (chosen.isHorizontal()) {
         // Search for a wall
-        int startIndirectIdx = chosenIndirectIdx + 1 + rng.u32Rand() % (list.size()-1);
+        int startIndirectIdx =
+            chosenIndirectIdx + 1 + rng.sampleI32(0, list.size() - 1);
         for (int i = 0; i < list.size() - 1; ++i) {
             int currentIndirectIdx = (startIndirectIdx + i) % list.size();
             if (currentIndirectIdx == chosenIndirectIdx) {
@@ -224,7 +224,8 @@ int findAnotherWall(
     }
     else {
         // Search for a wall
-        int startIndirectIdx = chosenIndirectIdx + 1 + rng.u32Rand() % (list.size()-1);
+        int startIndirectIdx =
+            chosenIndirectIdx + 1 + rng.sampleI32(0, list.size() - 1);
         for (int i = 0; i < list.size() - 1; ++i) {
             int currentIndirectIdx = (startIndirectIdx + i) % list.size();
             if (currentIndirectIdx == chosenIndirectIdx) {
@@ -309,24 +310,24 @@ void applyWallOperation(WallOperation op, Walls &walls, RNG &rng) {
             // printf("Connected!\n");
 
             // First choose a random wall
-            bool isHorizontal = (bool)(rng.u32Rand() % 2);
+            bool isHorizontal = (bool)(rng.sampleI32(0, 2));
             auto *list = [&walls, &isHorizontal] () -> TmpArray<uint8_t> * {
                 return isHorizontal ? &walls.horizontal : &walls.vertical;
             }();
 
             // Current wall
-            int wallIndirectIdx = rng.u32Rand() % list->size();
+            int wallIndirectIdx = rng.sampleI32(0, list->size());
             int otherWallIndirectIdx;
 
             int counter = 0;
             while ((otherWallIndirectIdx = findAnotherWall(walls, *list, wallIndirectIdx, rng)) == -1) {
                 // Find another wall
-                isHorizontal = (bool)(rng.u32Rand() % 2);
+                isHorizontal = (bool)(rng.sampleI32(0, 2));
                 list = [&walls, &isHorizontal] () -> TmpArray<uint8_t> * {
                     return isHorizontal ? &walls.horizontal : &walls.vertical;
                 }();
 
-                wallIndirectIdx = rng.u32Rand() % list->size();
+                wallIndirectIdx = rng.sampleI32(0, list->size());
 
                 if (counter++ > 4) return;
             }
@@ -409,7 +410,7 @@ void applyWallOperation(WallOperation op, Walls &walls, RNG &rng) {
             float doorSize = kDoorSize * 2.0f;
 
             // Choose a random wall
-            int randomWallIdx = rng.u32Rand() % walls.walls.size();
+            int randomWallIdx = rng.sampleI32(0, walls.walls.size());
             Wall &wall = walls.walls[randomWallIdx];
             
             if (wall.length() > 3.0f * doorSize) {
@@ -433,8 +434,8 @@ Walls makeWalls(Context &ctx, RNG &rng) {
     walls.addWall(Wall({0.0f,1.0f}, {1.0f,1.0f}));
     walls.addWall(Wall({1.0f,1.0f}, {1.0f,0.0f}));
 
-    int wallConnectAndAddDoorCount = 1 + rng.u32Rand() % (maxConnect-1);
-    int wallAddDoorCount = 4 + rng.u32Rand() % (maxAddDoors - 4);
+    int wallConnectAndAddDoorCount = 1 + rng.sampleI32(0, maxConnect);
+    int wallAddDoorCount = 4 + rng.sampleI32(0, maxAddDoors - 4);
 
     int maxCounts[WallMaxEnum] = {};
     maxCounts[WallConnectAndAddDoor] = wallConnectAndAddDoorCount;

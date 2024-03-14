@@ -118,7 +118,9 @@ int main(int argc, char *argv[])
         }
     }
 
-    uint32_t num_views = 5;
+    uint32_t num_hiders = 3;
+    uint32_t num_seekers = 2;
+    uint32_t num_views = num_hiders + num_seekers;
 
     auto replay_log = Optional<HeapArray<int32_t>>::none();
     uint32_t cur_replay_step = 0;
@@ -128,6 +130,11 @@ int main(int argc, char *argv[])
         num_replay_steps = replay_log->size() / (num_worlds * num_views * 5);
     }
 
+    SimFlags sim_flags = SimFlags::Default;
+
+    if (replay_log_path == nullptr) {
+        sim_flags |= SimFlags::IgnoreEpisodeLength;
+    }
     
     bool enable_batch_renderer =
 #ifdef MADRONA_MACOS
@@ -144,8 +151,12 @@ int main(int argc, char *argv[])
         .execMode = exec_mode,
         .gpuID = 0,
         .numWorlds = num_worlds,
-        .autoReset = replay_log_path != nullptr,
-        .maxAgentsPerWorld = num_views,
+        .simFlags = sim_flags,
+        .randSeed = 10,
+        .minHiders = num_hiders,
+        .maxHiders = num_hiders,
+        .minSeekers = num_seekers,
+        .maxSeekers = num_seekers,
         .enableBatchRenderer = enable_batch_renderer,
         .extRenderAPI = wm.gpuAPIManager().backend(),
         .extRenderDev = render_gpu.device(),
@@ -230,43 +241,43 @@ int main(int argc, char *argv[])
         using Key = Viewer::KeyboardKey;
 
         if (input.keyHit(Key::R)) {
-            mgr.triggerReset(world_idx, 1, 3, 2);
+            mgr.triggerReset(world_idx, 1);
         }
 
         if (input.keyHit(Key::K1)) {
-            mgr.triggerReset(world_idx, 1, 3, 2);
+            mgr.triggerReset(world_idx, 1);
         }
 
         if (input.keyHit(Key::K2)) {
-            mgr.triggerReset(world_idx, 2, 3, 2);
+            mgr.triggerReset(world_idx, 2);
         }
 
         if (input.keyHit(Key::K3)) {
-            mgr.triggerReset(world_idx, 3, 3, 2);
+            mgr.triggerReset(world_idx, 3);
         }
 
         if (input.keyHit(Key::K4)) {
-            mgr.triggerReset(world_idx, 4, 3, 2);
+            mgr.triggerReset(world_idx, 4);
         }
 
         if (input.keyHit(Key::K5)) {
-            mgr.triggerReset(world_idx, 5, 3, 2);
+            mgr.triggerReset(world_idx, 5);
         }
 
         if (input.keyHit(Key::K6)) {
-            mgr.triggerReset(world_idx, 6, 3, 2);
+            mgr.triggerReset(world_idx, 6);
         }
 
         if (input.keyHit(Key::K7)) {
-            mgr.triggerReset(world_idx, 7, 3, 2);
+            mgr.triggerReset(world_idx, 7);
         }
 
         if (input.keyHit(Key::K8)) {
-            mgr.triggerReset(world_idx, 8, 3, 2);
+            mgr.triggerReset(world_idx, 8);
         }
 
         if (input.keyHit(Key::K9)) {
-            mgr.triggerReset(world_idx, 9, 3, 2);
+            mgr.triggerReset(world_idx, 9);
         }
 
     },

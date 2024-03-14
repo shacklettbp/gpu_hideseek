@@ -12,6 +12,8 @@
 
 #include <madrona/render/render_mgr.hpp>
 
+#include "sim_flags.hpp"
+
 namespace GPUHideSeek {
 
 class Manager {
@@ -20,8 +22,12 @@ public:
         madrona::ExecMode execMode;
         int gpuID;
         uint32_t numWorlds;
-        bool autoReset;
-        uint32_t maxAgentsPerWorld;
+        SimFlags simFlags;
+        uint32_t randSeed;
+        uint32_t minHiders;
+        uint32_t maxHiders;
+        uint32_t minSeekers;
+        uint32_t maxSeekers;
         bool enableBatchRenderer;
         uint32_t batchRenderViewWidth = 64;
         uint32_t batchRenderViewHeight = 64;
@@ -56,9 +62,7 @@ public:
     MGR_EXPORT madrona::py::Tensor rgbTensor() const;
 
     MGR_EXPORT void triggerReset(madrona::CountT world_idx,
-                                 madrona::CountT level_idx,
-                                 madrona::CountT num_hiders,
-                                 madrona::CountT num_seekers);
+                                 madrona::CountT level_idx);
     MGR_EXPORT void setAction(madrona::CountT agent_idx,
                               int32_t x, int32_t y, int32_t r,
                               bool g, bool l);

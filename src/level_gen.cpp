@@ -26,7 +26,7 @@ static Entity makeAgent(Engine &ctx, AgentType agent_type)
         ctx.data().hiders[ctx.data().numHiders++] = agent;
     }
 
-    ctx.get<Seed>(agent_iface).seed = ctx.data().curEpisodeSeed;
+    ctx.get<Seed>(agent_iface).key = ctx.data().curEpisodeRNDCounter;
 
     // Zero out actions
     ctx.get<Action>(agent_iface) = {
@@ -57,11 +57,11 @@ static void generateTrainingEnvironment(Engine &ctx,
 {
     auto &rng = ctx.data().rng;
 
-    CountT total_num_boxes = CountT(rng.rand() * 6) + 3;
-    assert(total_num_boxes < consts::maxBoxes);
+    CountT total_num_boxes = (CountT)rng.sampleI32(3, 10);
+    assert(total_num_boxes <= consts::maxBoxes);
 
     CountT num_elongated = 
-    CountT(ctx.data().rng.rand() * (total_num_boxes - 3)) + 3;
+        (CountT)rng.sampleI32(3, total_num_boxes);
 
     CountT num_cubes = total_num_boxes - num_elongated;
 
@@ -106,12 +106,12 @@ static void generateTrainingEnvironment(Engine &ctx,
             float bounds_diffy = bounds.y - bounds.x;
 
             Vector3 pos {
-                bounds.x + rng.rand() * bounds_diffx,
-                bounds.x + rng.rand() * bounds_diffy,
+                bounds.x + rng.sampleUniform() * bounds_diffx,
+                bounds.x + rng.sampleUniform() * bounds_diffy,
                 1.0f,
             };
 
-            float box_rotation = rng.rand() * math::pi;
+            float box_rotation = rng.sampleUniform() * math::pi;
             const auto rot = Quat::angleAxis(box_rotation, {0, 0, 1});
             Diag3x3 scale = {1.0f, 1.0f, 1.0f};
 
@@ -147,12 +147,12 @@ static void generateTrainingEnvironment(Engine &ctx,
 #endif
 
             Vector3 pos {
-                bounds.x + rng.rand() * bounds_diffx,
-                bounds.x + rng.rand() * bounds_diffy,
+                bounds.x + rng.sampleUniform() * bounds_diffx,
+                bounds.x + rng.sampleUniform() * bounds_diffy,
                 1.0f,
             };
 
-            float box_rotation = rng.rand() * math::pi;
+            float box_rotation = rng.sampleUniform() * math::pi;
             const auto rot = Quat::angleAxis(box_rotation, {0, 0, 1});
             Diag3x3 scale = {1.0f, 1.0f, 1.0f};
 
@@ -184,12 +184,12 @@ static void generateTrainingEnvironment(Engine &ctx,
             float bounds_diffy = bounds.y - bounds.x;
 
             Vector3 pos {
-                bounds.x + rng.rand() * bounds_diffx,
-                bounds.x + rng.rand() * bounds_diffy,
+                bounds.x + rng.sampleUniform() * bounds_diffx,
+                bounds.x + rng.sampleUniform() * bounds_diffy,
                 1.0f,
             };
 
-            float ramp_rotation = rng.rand() * math::pi;
+            float ramp_rotation = rng.sampleUniform() * math::pi;
             const auto rot = Quat::angleAxis(ramp_rotation, {0, 0, 1});
             Diag3x3 scale = {1.0f, 1.0f, 1.0f};
 
@@ -236,12 +236,12 @@ static void generateTrainingEnvironment(Engine &ctx,
         CountT rejections = 0;
         while (true) {
             Vector3 pos {
-                bounds.x + rng.rand() * bounds_diff,
-                bounds.x + rng.rand() * bounds_diff,
+                bounds.x + rng.sampleUniform() * bounds_diff,
+                bounds.x + rng.sampleUniform() * bounds_diff,
                 1.f,
             };
 
-            const auto rot = Quat::angleAxis(rng.rand() * math::pi, {0, 0, 1});
+            const auto rot = Quat::angleAxis(rng.sampleUniform() * math::pi, {0, 0, 1});
             Diag3x3 scale = {1.0f, 1.0f, 1.0f};
 
             AABB aabb = obj_mgr.rigidBodyAABBs[(uint32_t)SimObject::Agent];
@@ -259,12 +259,12 @@ static void generateTrainingEnvironment(Engine &ctx,
         CountT rejections = 0;
         while (true) {
             Vector3 pos {
-                bounds.x + rng.rand() * bounds_diff,
-                bounds.x + rng.rand() * bounds_diff,
+                bounds.x + rng.sampleUniform() * bounds_diff,
+                bounds.x + rng.sampleUniform() * bounds_diff,
                 1.f,
             };
 
-            const auto rot = Quat::angleAxis(rng.rand() * math::pi, {0, 0, 1});
+            const auto rot = Quat::angleAxis(rng.sampleUniform() * math::pi, {0, 0, 1});
             Diag3x3 scale = {1.0f, 1.0f, 1.0f};
 
             AABB aabb = obj_mgr.rigidBodyAABBs[(uint32_t)SimObject::Agent];
@@ -302,13 +302,6 @@ void generateEnvironment(Engine &ctx,
                          CountT num_hiders,
                          CountT num_seekers)
 {
-    EpisodeManager &episode_mgr = *ctx.data().episodeMgr;
-    uint32_t episode_idx =
-        episode_mgr.curEpisode.fetch_add<sync::relaxed>(1);
-    ctx.data().rng = RNG::make(episode_idx);
-
-    ctx.data().curEpisodeSeed = episode_idx;
-
     if (level_id == 1) {
         generateTrainingEnvironment(ctx, num_hiders, num_seekers);
     } else {
@@ -387,45 +380,7 @@ static void level4(Engine &ctx)
 
 static void level5(Engine &ctx)
 {
-    Entity *all_entities = ctx.data().obstacles;
-    CountT num_entities_range =
-        ctx.data().maxEpisodeEntities - ctx.data().minEpisodeEntities;
-
-    CountT num_dyn_entities =
-        CountT(ctx.data().rng.rand() * num_entities_range) +
-        ctx.data().minEpisodeEntities;
-
-    const Vector2 bounds { -10.f, 10.f };
-    float bounds_diff = bounds.y - bounds.x;
-
-    for (CountT i = 0; i < num_dyn_entities; i++) {
-        Vector3 pos {
-            bounds.x + ctx.data().rng.rand() * bounds_diff,
-            bounds.x + ctx.data().rng.rand() * bounds_diff,
-            1.f,
-        };
-
-        const auto rot = Quat::angleAxis(0, {0, 0, 1});
-
-        all_entities[i] = makeDynObject(ctx, pos, rot, SimObject::Cube);
-    }
-
-    CountT total_entities = num_dyn_entities;
-
-    all_entities[total_entities++] =
-        makePlane(ctx, {0, 0, 0}, Quat::angleAxis(0, {1, 0, 0}));
-    all_entities[total_entities++] =
-        makePlane(ctx, {0, 0, 40}, Quat::angleAxis(pi, {1, 0, 0}));
-    //all_entities[total_entities++] =
-    //    makePlane(ctx, {-20, 0, 0}, Quat::angleAxis(pi_d2, {0, 1, 0}));
-    //all_entities[total_entities++] =
-    //    makePlane(ctx, {20, 0, 0}, Quat::angleAxis(-pi_d2, {0, 1, 0}));
-    //all_entities[total_entities++] =
-    //    makePlane(ctx, {0, -20, 0}, Quat::angleAxis(-pi_d2, {1, 0, 0}));
-    //all_entities[total_entities++] =
-    //    makePlane(ctx, {0, 20, 0}, Quat::angleAxis(pi_d2, {1, 0, 0}));
-
-    ctx.data().numObstacles = total_entities;
+    (void)ctx;
 }
 
 static void level6(Engine &ctx)

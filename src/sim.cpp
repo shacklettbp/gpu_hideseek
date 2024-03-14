@@ -46,6 +46,8 @@ void Sim::registerTypes(ECSRegistry &registry,
 
     registry.registerSingleton<WorldReset>();
     registry.registerSingleton<GlobalDebugPositions>();
+    registry.registerSingleton<LoadCheckpoint>();
+    registry.registerSingleton<Checkpoint>();
 
     registry.registerArchetype<DynamicObject>();
     registry.registerArchetype<AgentInterface>();
@@ -79,6 +81,30 @@ void Sim::registerTypes(ECSRegistry &registry,
     registry.exportColumn<AgentInterface, Done>(ExportID::Done);
     registry.exportSingleton<GlobalDebugPositions>(
         ExportID::GlobalDebugPositions);
+}
+
+static void initEpisodeRNG(Engine &ctx)
+{
+    RandKey new_rnd_counter;
+    if ((ctx.data().simFlags & SimFlags::UseFixedWorld) ==
+            SimFlags::UseFixedWorld) {
+        new_rnd_counter = { 0, 0 };
+    } else {
+        if (ctx.singleton<LoadCheckpoint>().load == 1) {
+            // If loading a checkpoint, use the random
+            // seed that generated that world.
+            new_rnd_counter = ctx.singleton<Checkpoint>().initRNDCounter;
+        } else {
+            new_rnd_counter = {
+                .a = ctx.data().curWorldEpisode++,
+                .b = (uint32_t)ctx.worldID().idx,
+            };
+        }
+    }
+
+    ctx.data().curEpisodeRNDCounter = new_rnd_counter;
+    ctx.data().rng = RNG(rand::split_i(ctx.data().initRandKey,
+        new_rnd_counter.a, new_rnd_counter.b));
 }
 
 static inline void resetEnvironment(Engine &ctx)
@@ -120,13 +146,17 @@ static inline void resetEnvironment(Engine &ctx)
     ctx.data().numSeekers = 0;
 
     ctx.data().numActiveAgents = 0;
+
+    initEpisodeRNG(ctx);
 }
 
 inline void resetSystem(Engine &ctx, WorldReset &reset)
 {
     int32_t level = reset.resetLevel;
 
-    if (ctx.data().autoReset && ctx.data().curEpisodeStep == episodeLen - 1) {
+    if ((ctx.data().simFlags & SimFlags::IgnoreEpisodeLength) !=
+                SimFlags::IgnoreEpisodeLength &&
+            ctx.data().curEpisodeStep == episodeLen - 1) {
         level = 1;
     }
 
@@ -135,8 +165,10 @@ inline void resetSystem(Engine &ctx, WorldReset &reset)
 
         reset.resetLevel = 0;
 
-        int32_t num_hiders = reset.numHiders;
-        int32_t num_seekers = reset.numSeekers;
+        int32_t num_hiders = ctx.data().rng.sampleI32(
+            ctx.data().minHiders, ctx.data().maxHiders + 1);
+        int32_t num_seekers = ctx.data().rng.sampleI32(
+            ctx.data().minSeekers, ctx.data().maxSeekers + 1);
 
         generateEnvironment(ctx, level, num_hiders, num_seekers);
     } else {
@@ -731,6 +763,10 @@ inline void updateCameraSystem(Engine &ctx,
                                Rotation &rot,
                                SimEntity sim_e)
 {
+    if (sim_e.e == Entity::none()) {
+        return;
+    }
+
     pos = ctx.get<Position>(sim_e.e);
     rot = ctx.get<Rotation>(sim_e.e);
 }
@@ -917,10 +953,14 @@ void Sim::setupTasks(TaskGraphManager &taskgraph_mgr, const Config &cfg)
 
 Sim::Sim(Engine &ctx,
          const Config &cfg,
-         const WorldInit &init)
-    : WorldBase(ctx),
-      episodeMgr(init.episodeMgr)
+         const WorldInit &)
+    : WorldBase(ctx)
 {
+    simFlags = cfg.simFlags;
+
+    initRandKey = cfg.initRandKey;
+    curWorldEpisode = 0;
+
     const CountT max_total_entities = consts::maxBoxes + consts::maxRamps +
         consts::maxAgents + 30;
 
@@ -933,7 +973,33 @@ Sim::Sim(Engine &ctx,
         RenderingSystem::init(ctx, cfg.renderBridge);
     }
 
-    for (CountT i = 0; i < (CountT)cfg.maxAgentsPerWorld; i++) {
+    obstacles =
+        (Entity *)rawAlloc(sizeof(Entity) * size_t(max_total_entities));
+    numObstacles = 0;
+
+    numHiders = 0;
+    numSeekers = 0;
+    numActiveAgents = 0;
+    
+    curEpisodeStep = 0;
+
+    minHiders = cfg.minHiders;
+    maxHiders = cfg.maxHiders;
+    minSeekers = cfg.minSeekers;
+    maxSeekers = cfg.maxSeekers;
+    maxAgentsPerWorld = cfg.maxHiders + cfg.maxSeekers;
+
+    assert(maxAgentsPerWorld <= consts::maxAgents && maxAgentsPerWorld > 0);
+
+    ctx.singleton<WorldReset>() = {
+        .resetLevel = 1,
+    };
+     
+    ctx.singleton<LoadCheckpoint>() = {
+        .load = 0,
+    };
+
+    for (CountT i = 0; i < (CountT)maxAgentsPerWorld; i++) {
         Entity agent_iface = agentInterfaces[i] =
             ctx.makeEntity<AgentInterface>();
 
@@ -944,29 +1010,6 @@ Sim::Sim(Engine &ctx,
                     0.5f * math::up);
         }
     }
-
-    obstacles =
-        (Entity *)rawAlloc(sizeof(Entity) * size_t(max_total_entities));
-    numObstacles = 0;
-    minEpisodeEntities = init.minEntitiesPerWorld;
-    maxEpisodeEntities = init.maxEntitiesPerWorld;
-
-    numHiders = 0;
-    numSeekers = 0;
-    numActiveAgents = 0;
-    
-    curEpisodeStep = 0;
-
-    autoReset = cfg.autoReset;
-    maxAgentsPerWorld = cfg.maxAgentsPerWorld;
-
-    assert(maxAgentsPerWorld <= consts::maxAgents && maxAgentsPerWorld > 0);
-
-    ctx.singleton<WorldReset>() = {
-        .resetLevel = 1,
-        .numHiders = 3,
-        .numSeekers = 2,
-    };
 
     ctx.data().hiderTeamReward.store_relaxed(1.f);
 }
