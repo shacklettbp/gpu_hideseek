@@ -189,10 +189,10 @@ inline void movementSystem(Engine &ctx, Action &action, SimEntity sim_e,
 
     constexpr CountT discrete_action_buckets = 11;
     constexpr CountT half_buckets = discrete_action_buckets / 2;
-    constexpr float move_discrete_action_max = 120 * 4;
+    constexpr float move_discrete_action_max = 120;
     constexpr float move_delta_per_bucket = move_discrete_action_max / half_buckets;
 
-    constexpr float turn_discrete_action_max = 40 * 4;
+    constexpr float turn_discrete_action_max = 40;
     constexpr float turn_delta_per_bucket = turn_discrete_action_max / half_buckets;
 
     Quat cur_rot = ctx.get<Rotation>(sim_e.e);
@@ -306,17 +306,6 @@ inline void actionSystem(Engine &ctx,
     action.r = 5;
     action.g = 0;
     action.l = 0;
-}
-
-inline void agentZeroVelSystem(Engine &,
-                               Velocity &vel,
-                               GrabData &)
-{
-    vel.linear.x = 0;
-    vel.linear.y = 0;
-    vel.linear.z = fminf(vel.linear.z, 0);
-
-    vel.angular = Vector3::zero();
 }
 
 inline void collectObservationsSystem(Engine &ctx,
@@ -800,11 +789,7 @@ static TaskGraphNodeID processActionsAndPhysicsTasks(TaskGraphBuilder &builder)
     auto substep_sys = phys::RigidBodyPhysicsSystem::setupSubstepTasks(builder,
         {action_sys}, numPhysicsSubsteps);
 
-    auto agent_zero_vel = builder.addToGraph<ParallelForNode<Engine,
-        agentZeroVelSystem, Velocity, GrabData>>(
-            {substep_sys});
-
-    auto sim_done = agent_zero_vel;
+    auto sim_done = substep_sys;
 
     sim_done = phys::RigidBodyPhysicsSystem::setupCleanupTasks(
         builder, {sim_done});

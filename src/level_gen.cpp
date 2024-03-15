@@ -380,7 +380,37 @@ static void level4(Engine &ctx)
 
 static void level5(Engine &ctx)
 {
-    (void)ctx;
+    Entity *all_entities = ctx.data().obstacles;
+
+    CountT num_entities = 0;
+    all_entities[num_entities++] =
+        makePlane(ctx, {0, 0, 0}, Quat::angleAxis(0, {1, 0, 0}));
+
+    auto makeDynAgent = [&](Vector3 pos, Quat rot, AgentType agent_type) {
+        Entity agent = makeAgent(ctx, agent_type);
+        ctx.get<Position>(agent) = pos;
+        ctx.get<Rotation>(agent) = rot;
+        ctx.get<Scale>(agent) = Diag3x3 { 1, 1, 1 };
+        ObjectID agent_obj_id = ObjectID { (uint32_t)SimObject::Agent };
+        ctx.get<ObjectID>(agent) = agent_obj_id;
+        ctx.get<phys::broadphase::LeafID>(agent) =
+            phys::RigidBodyPhysicsSystem::registerEntity(ctx, agent,
+                                                         agent_obj_id);
+
+        ctx.get<Velocity>(agent) = {
+            Vector3::zero(),
+            Vector3::zero(),
+        };
+        ctx.get<ResponseType>(agent) = ResponseType::Dynamic;
+        ctx.get<OwnerTeam>(agent) = OwnerTeam::Unownable;
+        ctx.get<ExternalForce>(agent) = Vector3::zero();
+        ctx.get<ExternalTorque>(agent) = Vector3::zero();
+        ctx.get<GrabData>(agent).constraintEntity = Entity::none();
+
+        return agent;
+    };
+
+    makeDynAgent({0, 0, 1}, Quat { 1, 0, 0, 0 }, AgentType::Hider);
 }
 
 static void level6(Engine &ctx)
