@@ -235,8 +235,8 @@ static void loadPhysicsObjects(PhysicsLoader &loader)
 
     { // Cylinder (4)
         src_objs[4] = setupHull(2, 1.f, {
-            .muS = 2.f,
-            .muD = 8.f,
+            .muS = 0.5f,
+            .muD = 16.f,
         });
     }
 

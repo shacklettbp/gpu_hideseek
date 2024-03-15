@@ -189,10 +189,10 @@ inline void movementSystem(Engine &ctx, Action &action, SimEntity sim_e,
 
     constexpr CountT discrete_action_buckets = 11;
     constexpr CountT half_buckets = discrete_action_buckets / 2;
-    constexpr float move_discrete_action_max = 120;
+    constexpr float move_discrete_action_max = 60;
     constexpr float move_delta_per_bucket = move_discrete_action_max / half_buckets;
 
-    constexpr float turn_discrete_action_max = 40;
+    constexpr float turn_discrete_action_max = 15;
     constexpr float turn_delta_per_bucket = turn_discrete_action_max / half_buckets;
 
     Quat cur_rot = ctx.get<Rotation>(sim_e.e);
