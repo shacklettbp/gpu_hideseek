@@ -28,6 +28,10 @@ using madrona::math::Quat;
 using madrona::math::Diag3x3;
 using madrona::RNG;
 using madrona::RandKey;
+using madrona::render::Renderable;
+using madrona::phys::RigidBody;
+
+namespace PhysicsSystem = madrona::phys::PhysicsSystem;
 
 namespace consts {
 
@@ -112,20 +116,9 @@ enum class AgentType : uint32_t {
 };
 
 struct DynamicObject : public madrona::Archetype<
-    Position, 
-    Rotation,
-    Scale,
-    Velocity,
-    ObjectID,
-    ResponseType,
-    madrona::phys::xpbd::SubstepPrevState,
-    madrona::phys::xpbd::PreSolvePositional,
-    madrona::phys::xpbd::PreSolveVelocity,
-    ExternalForce,
-    ExternalTorque,
-    madrona::phys::broadphase::LeafID,
-    OwnerTeam,
-    madrona::render::Renderable
+    RigidBody,
+    Renderable,
+    OwnerTeam
 > {};
 
 struct Action {
@@ -232,21 +225,10 @@ struct AgentInterface : public madrona::Archetype<
 > {};
 
 struct DynAgent : public madrona::Archetype<
-    Position, 
-    Rotation,
-    Scale,
-    Velocity,
-    ObjectID,
-    ResponseType,
-    madrona::phys::xpbd::SubstepPrevState,
-    madrona::phys::xpbd::PreSolvePositional,
-    madrona::phys::xpbd::PreSolveVelocity,
-    ExternalForce,
-    ExternalTorque,
-    madrona::phys::broadphase::LeafID,
+    RigidBody,
+    Renderable,
     OwnerTeam,
-    GrabData,
-    madrona::render::Renderable
+    GrabData
 > {};
 
 struct WorldInit {};

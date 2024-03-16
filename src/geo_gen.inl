@@ -19,7 +19,7 @@ madrona::Entity makeDynObject(Engine &ctx,
     ctx.get<Scale>(e) = scale;
     ctx.get<ObjectID>(e) = ObjectID { (int32_t)obj_id };
     ctx.get<phys::broadphase::LeafID>(e) =
-        phys::RigidBodyPhysicsSystem::registerEntity(
+        PhysicsSystem::registerEntity(
             ctx, e, ObjectID {(int32_t)obj_id});
     ctx.get<Velocity>(e) = {
         Vector3::zero(),

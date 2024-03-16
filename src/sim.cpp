@@ -20,7 +20,7 @@ void Sim::registerTypes(ECSRegistry &registry,
                         const Config &cfg)
 {
     base::registerTypes(registry);
-    phys::RigidBodyPhysicsSystem::registerTypes(registry);
+    phys::PhysicsSystem::registerTypes(registry);
 
     RenderingSystem::registerTypes(registry, cfg.renderBridge);
 
@@ -111,7 +111,7 @@ static inline void resetEnvironment(Engine &ctx)
 {
     ctx.data().curEpisodeStep = 0;
 
-    phys::RigidBodyPhysicsSystem::reset(ctx);
+    phys::PhysicsSystem::reset(ctx);
 
     Entity *all_entities = ctx.data().obstacles;
     for (CountT i = 0; i < ctx.data().numObstacles; i++) {
@@ -289,10 +289,9 @@ inline void actionSystem(Engine &ctx,
 
                     float separation = hit_t - 1.25f;
 
-                    grab_data.constraintEntity = 
-                        JointConstraint::setupFixed(ctx, sim_e.e, grab_entity,
-                                                    attach1, attach2,
-                                                    r1, r2, separation);
+                    grab_data.constraintEntity = PhysicsSystem::makeFixedJoint(
+                        ctx, sim_e.e, grab_entity, attach1, attach2,
+                        r1, r2, separation);
 
                 }
             }
@@ -780,18 +779,18 @@ static TaskGraphNodeID processActionsAndPhysicsTasks(TaskGraphBuilder &builder)
     auto move_sys = builder.addToGraph<ParallelForNode<Engine, movementSystem,
         Action, SimEntity, AgentType>>({});
 
-    auto broadphase_setup_sys = phys::RigidBodyPhysicsSystem::setupBroadphaseTasks(builder,
+    auto broadphase_setup_sys = phys::PhysicsSystem::setupBroadphaseTasks(builder,
         {move_sys});
 
     auto action_sys = builder.addToGraph<ParallelForNode<Engine, actionSystem,
         Action, SimEntity, AgentType>>({broadphase_setup_sys});
 
-    auto substep_sys = phys::RigidBodyPhysicsSystem::setupSubstepTasks(builder,
+    auto substep_sys = PhysicsSystem::setupPhysicsStepTasks(builder,
         {action_sys}, numPhysicsSubsteps);
 
     auto sim_done = substep_sys;
 
-    sim_done = phys::RigidBodyPhysicsSystem::setupCleanupTasks(
+    sim_done = phys::PhysicsSystem::setupCleanupTasks(
         builder, {sim_done});
 
     return sim_done;
@@ -838,7 +837,7 @@ static TaskGraphNodeID resetTasks(TaskGraphBuilder &builder,
     (void)recycle_sys;
 #endif
 
-    auto post_reset_broadphase = phys::RigidBodyPhysicsSystem::setupBroadphaseTasks(
+    auto post_reset_broadphase = phys::PhysicsSystem::setupBroadphaseTasks(
         builder, {reset_finish});
 
     return post_reset_broadphase;
@@ -949,7 +948,7 @@ Sim::Sim(Engine &ctx,
     const CountT max_total_entities = consts::maxBoxes + consts::maxRamps +
         consts::maxAgents + 30;
 
-    phys::RigidBodyPhysicsSystem::init(ctx, cfg.rigidBodyObjMgr, deltaT,
+    PhysicsSystem::init(ctx, cfg.rigidBodyObjMgr, deltaT,
          numPhysicsSubsteps, -9.8 * math::up, max_total_entities);
 
     enableRender = cfg.renderBridge != nullptr;

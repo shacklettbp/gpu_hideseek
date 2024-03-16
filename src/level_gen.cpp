@@ -216,7 +216,7 @@ static void generateTrainingEnvironment(Engine &ctx,
         ObjectID agent_obj_id = ObjectID { (uint32_t)SimObject::Agent };
         ctx.get<ObjectID>(agent) = agent_obj_id;
         ctx.get<phys::broadphase::LeafID>(agent) =
-            phys::RigidBodyPhysicsSystem::registerEntity(ctx, agent,
+            PhysicsSystem::registerEntity(ctx, agent,
                                                          agent_obj_id);
 
         ctx.get<Velocity>(agent) = {
@@ -394,8 +394,7 @@ static void level5(Engine &ctx)
         ObjectID agent_obj_id = ObjectID { (uint32_t)SimObject::Agent };
         ctx.get<ObjectID>(agent) = agent_obj_id;
         ctx.get<phys::broadphase::LeafID>(agent) =
-            phys::RigidBodyPhysicsSystem::registerEntity(ctx, agent,
-                                                         agent_obj_id);
+            PhysicsSystem::registerEntity(ctx, agent, agent_obj_id);
 
         ctx.get<Velocity>(agent) = {
             Vector3::zero(),
@@ -439,8 +438,7 @@ static void level6(Engine &ctx)
         ObjectID agent_obj_id = ObjectID { (uint32_t)SimObject::Agent };
         ctx.get<ObjectID>(agent) = agent_obj_id;
         ctx.get<phys::broadphase::LeafID>(agent) =
-            phys::RigidBodyPhysicsSystem::registerEntity(ctx, agent,
-                                                         agent_obj_id);
+            PhysicsSystem::registerEntity(ctx, agent, agent_obj_id);
 
         ctx.get<Velocity>(agent) = {
             Vector3::zero(),
