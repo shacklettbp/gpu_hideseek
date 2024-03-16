@@ -16,11 +16,13 @@ constexpr inline CountT numPhysicsSubsteps = 4;
 constexpr inline CountT numPrepSteps = 96;
 constexpr inline CountT episodeLen = 240;
 
+constexpr inline auto physicsSolverSelector = PhysicsSystem::Solver::XPBD;
+
 void Sim::registerTypes(ECSRegistry &registry,
                         const Config &cfg)
 {
     base::registerTypes(registry);
-    phys::PhysicsSystem::registerTypes(registry);
+    PhysicsSystem::registerTypes(registry, physicsSolverSelector);
 
     RenderingSystem::registerTypes(registry, cfg.renderBridge);
 
@@ -786,7 +788,7 @@ static TaskGraphNodeID processActionsAndPhysicsTasks(TaskGraphBuilder &builder)
         Action, SimEntity, AgentType>>({broadphase_setup_sys});
 
     auto substep_sys = PhysicsSystem::setupPhysicsStepTasks(builder,
-        {action_sys}, numPhysicsSubsteps);
+        {action_sys}, numPhysicsSubsteps, physicsSolverSelector);
 
     auto sim_done = substep_sys;
 
@@ -949,7 +951,8 @@ Sim::Sim(Engine &ctx,
         consts::maxAgents + 30;
 
     PhysicsSystem::init(ctx, cfg.rigidBodyObjMgr, deltaT,
-         numPhysicsSubsteps, -9.8 * math::up, max_total_entities);
+         numPhysicsSubsteps, -9.8 * math::up, max_total_entities,
+         physicsSolverSelector);
 
     enableRender = cfg.renderBridge != nullptr;
 
