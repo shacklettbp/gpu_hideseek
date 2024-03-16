@@ -1,9 +1,4 @@
 #pragma once
-#ifdef gpu_hideseek_mgr_EXPORTS
-#define MGR_EXPORT MADRONA_EXPORT
-#else
-#define MGR_EXPORT MADRONA_IMPORT
-#endif
 
 #include <memory>
 
@@ -35,37 +30,37 @@ public:
         madrona::render::GPUDevice *extRenderDev = nullptr;
     };
 
-    MGR_EXPORT Manager(const Config &cfg);
-    MGR_EXPORT ~Manager();
+    Manager(const Config &cfg);
+    ~Manager();
 
-    MGR_EXPORT void init();
-    MGR_EXPORT void step();
+    void init();
+    void step();
 
-    MGR_EXPORT madrona::py::Tensor resetTensor() const;
-    MGR_EXPORT madrona::py::Tensor doneTensor() const;
-    MGR_EXPORT madrona::py::Tensor prepCounterTensor() const;
-    MGR_EXPORT madrona::py::Tensor actionTensor() const;
-    MGR_EXPORT madrona::py::Tensor rewardTensor() const;
-    MGR_EXPORT madrona::py::Tensor agentTypeTensor() const;
-    MGR_EXPORT madrona::py::Tensor agentMaskTensor() const;
-    MGR_EXPORT madrona::py::Tensor agentDataTensor() const;
-    MGR_EXPORT madrona::py::Tensor boxDataTensor() const;
-    MGR_EXPORT madrona::py::Tensor rampDataTensor() const;
-    MGR_EXPORT madrona::py::Tensor visibleAgentsMaskTensor() const;
-    MGR_EXPORT madrona::py::Tensor visibleBoxesMaskTensor() const;
-    MGR_EXPORT madrona::py::Tensor visibleRampsMaskTensor() const;
-    MGR_EXPORT madrona::py::Tensor globalPositionsTensor() const;
-    MGR_EXPORT madrona::py::Tensor lidarTensor() const;
-    MGR_EXPORT madrona::py::Tensor seedTensor() const;
+    madrona::py::Tensor resetTensor() const;
+    madrona::py::Tensor doneTensor() const;
+    madrona::py::Tensor prepCounterTensor() const;
+    madrona::py::Tensor actionTensor() const;
+    madrona::py::Tensor rewardTensor() const;
+    madrona::py::Tensor agentTypeTensor() const;
+    madrona::py::Tensor agentMaskTensor() const;
+    madrona::py::Tensor agentDataTensor() const;
+    madrona::py::Tensor boxDataTensor() const;
+    madrona::py::Tensor rampDataTensor() const;
+    madrona::py::Tensor visibleAgentsMaskTensor() const;
+    madrona::py::Tensor visibleBoxesMaskTensor() const;
+    madrona::py::Tensor visibleRampsMaskTensor() const;
+    madrona::py::Tensor globalPositionsTensor() const;
+    madrona::py::Tensor lidarTensor() const;
+    madrona::py::Tensor seedTensor() const;
 
-    MGR_EXPORT madrona::py::Tensor depthTensor() const;
-    MGR_EXPORT madrona::py::Tensor rgbTensor() const;
+    madrona::py::Tensor depthTensor() const;
+    madrona::py::Tensor rgbTensor() const;
 
-    MGR_EXPORT void triggerReset(madrona::CountT world_idx,
-                                 madrona::CountT level_idx);
-    MGR_EXPORT void setAction(madrona::CountT agent_idx,
-                              int32_t x, int32_t y, int32_t r,
-                              bool g, bool l);
+    void triggerReset(madrona::CountT world_idx,
+                      madrona::CountT level_idx);
+    void setAction(madrona::CountT agent_idx,
+                   int32_t x, int32_t y, int32_t r,
+                   bool g, bool l);
 
     madrona::render::RenderManager & getRenderManager();
 

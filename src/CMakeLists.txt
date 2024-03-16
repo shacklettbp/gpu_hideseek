@@ -72,10 +72,10 @@ if (TARGET madrona_viz)
     target_compile_definitions(viewer PRIVATE
         -DDATA_DIR="${CMAKE_CURRENT_SOURCE_DIR}/../data/"
     )
-endif()
 
-if (TARGET madrona_cuda)
-    target_link_libraries(viewer PRIVATE madrona_cuda)
+    if (TARGET madrona_cuda)
+        target_link_libraries(viewer PRIVATE madrona_cuda)
+    endif()
 endif()
 
 add_executable(headless headless.cpp)

@@ -111,16 +111,6 @@ struct Manager::CPUImpl : Manager::Impl {
     inline void step();
 };
 
-#ifdef MADRONA_CUDA_SUPPORT
-struct Manager::CUDAImpl : Manager::Impl {
-    MWCudaExecutor mwGPU;
-    MWCudaLaunchGraph stepGraph;
-
-    inline void init();
-    inline void step();
-};
-#endif
-
 void Manager::CPUImpl::init()
 {
     cpuExec.runTaskGraph(TaskGraphID::Init);
@@ -130,6 +120,15 @@ void Manager::CPUImpl::step()
 {
     cpuExec.runTaskGraph(TaskGraphID::Step);
 }
+
+#ifdef MADRONA_CUDA_SUPPORT
+struct Manager::CUDAImpl : Manager::Impl {
+    MWCudaExecutor mwGPU;
+    MWCudaLaunchGraph stepGraph;
+
+    inline void init();
+    inline void step();
+};
 
 void Manager::CUDAImpl::init()
 {
@@ -142,6 +141,7 @@ void Manager::CUDAImpl::step()
 {
     mwGPU.run(stepGraph);
 }
+#endif
 
 static void loadPhysicsObjects(PhysicsLoader &loader)
 {
