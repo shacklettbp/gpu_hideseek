@@ -36,11 +36,11 @@ struct RenderGPUState {
 static inline Optional<RenderGPUState> initRenderGPUState(
     const Manager::Config &mgr_cfg)
 {
-#if !defined(MADRONA_VIEWER)
-    if (mgr_cfg.extRenderDev || !mgr_cfg.enableBatchRenderer) {
-        return Optional<RenderGPUState>::none();
+    if (!mgr_cfg.headlessMode) {
+        if (mgr_cfg.extRenderDev || !mgr_cfg.enableBatchRenderer) {
+            return Optional<RenderGPUState>::none();
+        }
     }
-#endif
 
     auto render_api_lib = render::APIManager::loadDefaultLib();
     render::APIManager render_api_mgr(render_api_lib.lib());
@@ -57,11 +57,15 @@ static inline Optional<render::RenderManager> initRenderManager(
     const Manager::Config &mgr_cfg,
     const Optional<RenderGPUState> &render_gpu_state)
 {
-#if !defined(MADRONA_VIEWER)
-    if (!mgr_cfg.extRenderDev && !mgr_cfg.enableBatchRenderer) {
+    if (mgr_cfg.headlessMode && !mgr_cfg.enableBatchRenderer) {
         return Optional<render::RenderManager>::none();
     }
-#endif
+
+    if (!mgr_cfg.headlessMode) {
+        if (!mgr_cfg.extRenderDev && !mgr_cfg.enableBatchRenderer) {
+            return Optional<render::RenderManager>::none();
+        }
+    }
 
     render::APIBackend *render_api;
     render::GPUDevice *render_dev;
@@ -96,6 +100,7 @@ struct Manager::Impl {
     Action *actionsPointer;
     uint32_t raycastOutputResolution;
     bool enableRaycasting;
+    bool headlessMode;
 
     static inline Impl * make(const Config &cfg);
 
@@ -457,6 +462,7 @@ Manager::Impl * Manager::Impl::make(const Config &cfg)
                 world_reset_buffer,
                 agent_actions_buffer,
                 cfg.raycastOutputResolution,
+                cfg.headlessMode
             },
             std::move(mwgpu_exec),
             std::move(step_graph),
@@ -576,12 +582,14 @@ void Manager::init()
     } break;
     }
 
-#if defined(MADRONA_VIEWER)
-    if (impl_->renderMgr.has_value()) {
-#else
-    if (impl_->cfg.enableBatchRenderer) {
-#endif
-        impl_->renderMgr->readECS();
+    if (impl_->headlessMode) {
+        if (impl_->cfg.enableBatchRenderer) {
+            impl_->renderMgr->readECS();
+        }
+    } else {
+        if (impl_->renderMgr.has_value()) {
+            impl_->renderMgr->readECS();
+        }
     }
 
     if (impl_->cfg.enableBatchRenderer) {
@@ -602,12 +610,14 @@ void Manager::step()
     } break;
     }
 
-#if defined(MADRONA_VIEWER)
-    if (impl_->renderMgr.has_value()) {
-#else
-    if (impl_->cfg.enableBatchRenderer) {
-#endif
-        impl_->renderMgr->readECS();
+    if (impl_->headlessMode) {
+        if (impl_->cfg.enableBatchRenderer) {
+            impl_->renderMgr->readECS();
+        }
+    } else {
+        if (impl_->renderMgr.has_value()) {
+            impl_->renderMgr->readECS();
+        }
     }
 
     if (impl_->cfg.enableBatchRenderer) {

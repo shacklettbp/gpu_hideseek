@@ -29,6 +29,7 @@ public:
         madrona::render::APIBackend *extRenderAPI = nullptr;
         madrona::render::GPUDevice *extRenderDev = nullptr;
         uint32_t raycastOutputResolution = 64;
+        bool headlessMode = false;
     };
 
     Manager(const Config &cfg);

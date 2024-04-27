@@ -65,17 +65,7 @@ int main(int argc, char *argv[])
 
     auto *resolution_str = getenv("MADRONA_RENDER_RESOLUTION");
 
-    uint32_t raycast_output_resolution = 32;
-
-    if (resolution_str[0] == '0') {
-        raycast_output_resolution *= 1;
-    } else if (resolution_str[0] == '1') {
-        raycast_output_resolution *= 2;
-    } else if (resolution_str[0] == '2') {
-        raycast_output_resolution *= 4;
-    } else if (resolution_str[0] == '3') {
-        raycast_output_resolution *= 8;
-    }
+    uint32_t raycast_output_resolution = std::stoi(resolution_str);
 
     Manager mgr({
         .execMode = exec_mode,
@@ -90,7 +80,8 @@ int main(int argc, char *argv[])
         .enableBatchRenderer = enable_batch_renderer,
         .batchRenderViewWidth = raycast_output_resolution,
         .batchRenderViewHeight = raycast_output_resolution,
-        .raycastOutputResolution = raycast_output_resolution
+        .raycastOutputResolution = raycast_output_resolution,
+        .headlessMode = true
     });
 
     mgr.init();
