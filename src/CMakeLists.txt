@@ -32,6 +32,7 @@ target_link_libraries(gpu_hideseek_mgr
         madrona_importer
         madrona_physics_loader
         madrona_render
+        bps3D
 )
 
 if (TARGET madrona_mw_gpu)
