@@ -352,7 +352,8 @@ static imp::ImportedAssets loadRenderObjects(
     if (render_mgr.has_value()) {
         render_mgr->loadObjects(render_assets->objects,
                 Span(materials.data(), materials.size()), 
-                Span(texture_paths.data(), (CountT)texture_paths.size()));
+                Span(texture_paths.data(), (CountT)texture_paths.size()),
+                true);
 
         render_mgr->configureLighting({
             { true, math::Vector3{1.0f, 1.0f, -2.0f}, math::Vector3{1.0f, 1.0f, 1.0f} }
