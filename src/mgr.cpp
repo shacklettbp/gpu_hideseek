@@ -136,6 +136,7 @@ void Manager::CPUImpl::step()
 struct Manager::CUDAImpl : Manager::Impl {
     MWCudaExecutor mwGPU;
     MWCudaLaunchGraph stepGraph;
+    MWCudaLaunchGraph renderGraph;
 
     inline void init();
     inline void step();
@@ -152,6 +153,7 @@ void Manager::CUDAImpl::init()
 void Manager::CUDAImpl::step()
 {
     mwGPU.run(stepGraph);
+    mwGPU.run(renderGraph);
 }
 #endif
 
@@ -470,7 +472,11 @@ Manager::Impl * Manager::Impl::make(const Config &cfg)
         }, cu_ctx);
 
         MWCudaLaunchGraph step_graph = mwgpu_exec.buildLaunchGraph(
-            TaskGraphID::Step, !cfg.enableBatchRenderer);
+            TaskGraphID::Step, false);
+
+        MWCudaLaunchGraph render_graph = mwgpu_exec.buildLaunchGraph(
+            TaskGraphID::Render, !cfg.enableBatchRenderer,
+            "render_sort");
 
         WorldReset *world_reset_buffer = 
             (WorldReset *)mwgpu_exec.getExported((uint32_t)ExportID::Reset);
@@ -493,6 +499,7 @@ Manager::Impl * Manager::Impl::make(const Config &cfg)
             },
             std::move(mwgpu_exec),
             std::move(step_graph),
+            std::move(render_graph)
         };
 #else
         FATAL("Madrona was not compiled with CUDA support");

@@ -902,7 +902,7 @@ static void observationsTasks(const Config &cfg,
                 SimEntity
             >>(deps);
 
-        RenderingSystem::setupTasks(builder, {update_camera});
+        // RenderingSystem::setupTasks(builder, {update_camera});
     }
 
     (void)lidar;
@@ -935,10 +935,17 @@ static void setupStepTasks(TaskGraphBuilder &builder, const Config &cfg)
     observationsTasks(cfg, builder, {resets});
 }
 
+static void setupRenderTasks(TaskGraphBuilder &builder, 
+                             const Config &cfg)
+{
+    RenderingSystem::setupTasks(builder, {});
+}
+
 void Sim::setupTasks(TaskGraphManager &taskgraph_mgr, const Config &cfg)
 {
     setupInitTasks(taskgraph_mgr.init(TaskGraphID::Init), cfg);
     setupStepTasks(taskgraph_mgr.init(TaskGraphID::Step), cfg);
+    setupRenderTasks(taskgraph_mgr.init(TaskGraphID::Render), cfg);
 }
 
 Sim::Sim(Engine &ctx,
