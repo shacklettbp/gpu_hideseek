@@ -462,6 +462,7 @@ Manager::Impl * Manager::Impl::make(const Config &cfg)
             .materials = { materials.data(), (CountT)materials.size() },
             .textures = { textures.data(), (CountT)textures.size() },
             .raycastOutputResolution = cfg.raycastOutputResolution,
+            .nearSphere = 2.1f
         }, {
             { GPU_HIDESEEK_SRC_LIST },
             { GPU_HIDESEEK_COMPILE_FLAGS },
