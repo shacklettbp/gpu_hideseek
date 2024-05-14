@@ -79,6 +79,19 @@ enum class SimObject : uint32_t {
     NumObjects,
 };
 
+struct BPSInstance {
+    Vector3 transform[4];
+    uint32_t objID;
+    uint32_t envID;
+};
+
+struct BPSBridge {
+    uint32_t numInstancesGPU;
+    BPSInstance *instancesGPU;
+    BPSInstance *instancesCPU;
+    uint32_t *numInstancesCPU;
+};
+
 struct Config {
     SimFlags simFlags;
     RandKey initRandKey;
@@ -88,6 +101,7 @@ struct Config {
     int32_t maxSeekers;
     madrona::phys::ObjectManager *rigidBodyObjMgr;
     const madrona::render::RenderECSBridge *renderBridge;
+    BPSBridge *bpsBridge;
 };
 
 class Engine;
@@ -292,6 +306,8 @@ struct Sim : public madrona::WorldBase {
     int32_t maxAgentsPerWorld;
 
     madrona::AtomicFloat hiderTeamReward {0};
+
+    BPSBridge *bpsBridge;
 };
 
 class Engine : public ::madrona::CustomContext<Engine, Sim> {

@@ -81,7 +81,8 @@ int main(int argc, char *argv[])
         .batchRenderViewWidth = raycast_output_resolution,
         .batchRenderViewHeight = raycast_output_resolution,
         .raycastOutputResolution = raycast_output_resolution,
-        .headlessMode = true
+        .headlessMode = true,
+        .useBPS3D = render_mode[0] == '3',
     });
 
     mgr.init();

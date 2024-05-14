@@ -849,6 +849,46 @@ static TaskGraphNodeID resetTasks(TaskGraphBuilder &builder,
     return post_reset_broadphase;
 }
 
+inline void bpsTxfmSystem(Engine &ctx,
+                          Position &pos,
+                          Rotation &rot,
+                          Scale &scale,
+                          ObjectID &obj_id)
+{
+    if (!ctx.data().bpsBridge) {
+        return;
+    }
+
+    BPSBridge &bridge = *ctx.data().bpsBridge;
+
+    AtomicU32Ref num_instances(bridge.numInstancesGPU);
+    uint32_t out_idx = num_instances.fetch_add_relaxed(1);
+
+    BPSInstance &out = bridge.instancesGPU[out_idx];
+
+    Mat3x4 o2w = Mat3x4::fromTRS(pos, rot, scale);
+
+    out.transform[0] = o2w.cols[0];
+    out.transform[1] = o2w.cols[1];
+    out.transform[2] = o2w.cols[2];
+    out.transform[3] = o2w.cols[3];
+
+    out.objID = obj_id.idx;
+    out.envID = ctx.worldID().idx;
+}
+
+inline void bpsCountReadbackSystem(Engine &ctx,
+                                   WorldReset)
+{
+    if (!ctx.data().bpsBridge || ctx.worldID().idx != 0) {
+        return;
+    }
+
+    BPSBridge &bridge = *ctx.data().bpsBridge;
+    AtomicU32Ref num_instances(bridge.numInstancesGPU);
+    *(bridge.numInstancesCPU) = num_instances.exchange<sync::relaxed>(0);
+}
+
 static void observationsTasks(const Config &cfg,
                               TaskGraphBuilder &builder,
                               Span<const TaskGraphNodeID> deps)
@@ -894,7 +934,7 @@ static void observationsTasks(const Config &cfg,
             GlobalDebugPositions
         >>(deps);
 
-    /* if (cfg.renderBridge) */ {
+    if (!cfg.bpsBridge) {
         auto update_camera = builder.addToGraph<ParallelForNode<Engine,
             updateCameraSystem,
                 Position,
@@ -903,6 +943,19 @@ static void observationsTasks(const Config &cfg,
             >>(deps);
 
         RenderingSystem::setupTasks(builder, {update_camera});
+    } else {
+        builder.addToGraph<ParallelForNode<Engine,
+            bpsTxfmSystem,
+                Position,
+                Rotation,
+                Scale,
+                ObjectID
+            >>({});
+
+        builder.addToGraph<ParallelForNode<Engine,
+            bpsCountReadbackSystem,
+                WorldReset
+            >>({});
     }
 
     (void)lidar;
@@ -959,7 +1012,7 @@ Sim::Sim(Engine &ctx,
          physicsSolverSelector);
 
     // enableRender = cfg.renderBridge != nullptr;
-    enableRender = true;
+    enableRender = cfg.bpsBridge == nullptr;
 
     if (enableRender) {
         RenderingSystem::init(ctx, cfg.renderBridge);
@@ -1005,6 +1058,8 @@ Sim::Sim(Engine &ctx,
     }
 
     ctx.data().hiderTeamReward.store_relaxed(1.f);
+
+    bpsBridge = cfg.bpsBridge;
 }
 
 MADRONA_BUILD_MWGPU_ENTRY(Engine, Sim, Config, WorldInit);

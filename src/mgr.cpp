@@ -20,12 +20,21 @@
 #include <madrona/cuda_utils.hpp>
 #endif
 
+#include <bps3D.hpp>
+
 using namespace madrona;
 using namespace madrona::math;
 using namespace madrona::phys;
 using namespace madrona::py;
 
 namespace GPUHideSeek {
+
+struct BPS3DState {
+    bps3D::Renderer renderer;
+    bps3D::AssetLoader assetLoader;
+    std::shared_ptr<bps3D::Scene> scene;
+    bps3D::Environment *envs;
+};
 
 struct RenderGPUState {
     render::APILibHandle apiLib;
@@ -36,6 +45,10 @@ struct RenderGPUState {
 static inline Optional<RenderGPUState> initRenderGPUState(
     const Manager::Config &mgr_cfg)
 {
+    if (mgr_cfg.useBPS3D) {
+        return Optional<RenderGPUState>::none();
+    }
+
     if (!mgr_cfg.headlessMode) {
         if (mgr_cfg.extRenderDev || !mgr_cfg.enableBatchRenderer) {
             return Optional<RenderGPUState>::none();
@@ -90,17 +103,57 @@ static inline Optional<render::RenderManager> initRenderManager(
     });
 }
 
+static inline Optional<BPS3DState> initBPS3D(
+    const Manager::Config &mgr_cfg)
+{
+    if (!mgr_cfg.useBPS3D) {
+        return Optional<BPS3DState>::none();
+    }
+
+    using namespace bps3D;
+
+    Renderer renderer({
+        .gpuID = 0,
+        .numLoaders = 1,
+        .batchSize = mgr_cfg.numWorlds,
+        .imgWidth = mgr_cfg.batchRenderViewWidth,
+        .imgHeight = mgr_cfg.batchRenderViewHeight,
+        .doubleBuffered = false,
+        .mode = RenderMode::Depth,
+    });
+
+    auto asset_loader = renderer.makeLoader();
+
+    auto scene = asset_loader.loadScene(
+        (std::filesystem::path(DATA_DIR) / "bps3d.bps").string().c_str());
+
+    bps3D::Environment *envs = (bps3D::Environment *)malloc(
+        sizeof(bps3D::Environment) * (size_t)mgr_cfg.numWorlds);
+
+    for (uint32_t world_idx = 0; world_idx < mgr_cfg.numWorlds; world_idx++) {
+        new (&envs[world_idx]) Environment(renderer.makeEnvironment(scene));
+    }
+
+    return BPS3DState {
+        .renderer = std::move(renderer),
+        .assetLoader = std::move(asset_loader),
+        .scene = std::move(scene),
+        .envs = envs,
+    };
+}
+
 struct Manager::Impl {
     Config cfg;
     int32_t maxAgentsPerWorld;
     PhysicsLoader physicsLoader;
     Optional<RenderGPUState> renderGPUState;
     Optional<render::RenderManager> renderMgr;
+    Optional<BPS3DState> bps3DState;
     WorldReset *resetsPointer;
     Action *actionsPointer;
     uint32_t raycastOutputResolution;
-    bool enableRaycasting;
     bool headlessMode;
+    BPSBridge bpsBridge;
 
     static inline Impl * make(const Config &cfg);
 
@@ -110,6 +163,8 @@ struct Manager::Impl {
                              TensorElementType type,
                              Span<const int64_t> dimensions);
 
+
+    inline void bpsRender();
 };
 
 struct Manager::CPUImpl : Manager::Impl {
@@ -416,10 +471,38 @@ Manager::Impl * Manager::Impl::make(const Config &cfg)
 
         gpu_imported_assets = std::move(*gpu_imported_assets_opt);
 
+        Optional<BPS3DState> bps3D_state = initBPS3D(cfg);
+
         if (render_mgr.has_value()) {
             app_cfg.renderBridge = render_mgr->bridge();
         } else {
             app_cfg.renderBridge = nullptr;
+        }
+
+
+        BPSBridge bps_bridge {};
+
+        if (bps3D_state.has_value()) {
+            CountT max_render_entities_per_world =
+                consts::maxBoxes + consts::maxRamps +
+                consts::maxAgents + 30;
+
+            CountT max_render_entities = cfg.numWorlds * max_render_entities_per_world;
+
+            bps_bridge.instancesGPU = (BPSInstance *)cu::allocGPU(
+                    sizeof(BPSInstance) * max_render_entities);
+            bps_bridge.instancesCPU = (BPSInstance *)cu::allocReadback(
+                    sizeof(BPSInstance) * max_render_entities);
+            bps_bridge.numInstancesCPU = 
+                (uint32_t *)cu::allocStaging(sizeof(uint32_t));
+
+            BPSBridge *bps_bridge_gpu = (BPSBridge *)cu::allocGPU(sizeof(BPSBridge));
+            cudaMemcpy(bps_bridge_gpu, &bps_bridge, sizeof(BPSBridge),
+                       cudaMemcpyHostToDevice);
+
+            app_cfg.bpsBridge = bps_bridge_gpu;
+        } else {
+            app_cfg.bpsBridge = nullptr;
         }
 
         HeapArray<WorldInit> world_inits(cfg.numWorlds);
@@ -443,7 +526,7 @@ Manager::Impl * Manager::Impl::make(const Config &cfg)
         }, cu_ctx);
 
         MWCudaLaunchGraph step_graph = mwgpu_exec.buildLaunchGraph(
-            TaskGraphID::Step, !cfg.enableBatchRenderer);
+            TaskGraphID::Step, !cfg.enableBatchRenderer && !cfg.useBPS3D);
 
         WorldReset *world_reset_buffer = 
             (WorldReset *)mwgpu_exec.getExported((uint32_t)ExportID::Reset);
@@ -451,18 +534,21 @@ Manager::Impl * Manager::Impl::make(const Config &cfg)
         Action *agent_actions_buffer = 
             (Action *)mwgpu_exec.getExported((uint32_t)ExportID::Action);
 
+
         HostEventLogging(HostEvent::initEnd);
         return new CUDAImpl {
             { 
-                cfg,
-                max_agents_per_world,
-                std::move(phys_loader),
-                std::move(render_gpu_state),
-                std::move(render_mgr),
-                world_reset_buffer,
-                agent_actions_buffer,
-                cfg.raycastOutputResolution,
-                cfg.headlessMode
+                .cfg = cfg,
+                .maxAgentsPerWorld = max_agents_per_world,
+                .physicsLoader = std::move(phys_loader),
+                .renderGPUState = std::move(render_gpu_state),
+                .renderMgr = std::move(render_mgr),
+                .bps3DState = std::move(bps3D_state),
+                .resetsPointer = world_reset_buffer,
+                .actionsPointer = agent_actions_buffer,
+                .raycastOutputResolution = cfg.raycastOutputResolution,
+                .headlessMode = cfg.headlessMode,
+                .bpsBridge = std::move(bps_bridge),
             },
             std::move(mwgpu_exec),
             std::move(step_graph),
@@ -516,10 +602,12 @@ Manager::Impl * Manager::Impl::make(const Config &cfg)
                 std::move(phys_loader),
                 std::move(render_gpu_state),
                 std::move(render_mgr),
+                Optional<BPS3DState>::none(),
                 world_reset_buffer,
                 agent_actions_buffer,
                 cfg.raycastOutputResolution,
-                !cfg.enableBatchRenderer
+                !cfg.enableBatchRenderer,
+                BPSBridge {},
             },
             std::move(cpu_exec),
         };
@@ -569,6 +657,59 @@ Manager::~Manager() {
     }
 }
 
+void Manager::Impl::bpsRender()
+{
+    uint32_t total_num_instances = *bpsBridge.numInstancesCPU;
+
+    REQ_CUDA(cudaMemcpy(bpsBridge.instancesCPU, bpsBridge.instancesGPU,
+        sizeof(BPSInstance) * (size_t)total_num_instances,
+        cudaMemcpyDeviceToHost));
+
+    for (uint32_t world_idx = 0; world_idx < cfg.numWorlds; world_idx++) {
+        auto &env = bps3DState->envs[world_idx];
+        auto &txfms = env.getTransforms();
+        auto &mats = env.getMaterials();
+
+        size_t num_models = txfms.size();
+
+        for (size_t i = 0; i < num_models; i++) {
+            auto &model_txfms = txfms[i];
+            auto &model_mats = mats[i];
+
+            model_txfms.clear();
+            model_mats.clear();
+        }
+    }
+
+    for (uint32_t i = 0; i < total_num_instances; i++) {
+        BPSInstance instance = bpsBridge.instancesCPU[i];
+
+        auto &env = bps3DState->envs[instance.envID];
+
+        auto &txfms = env.getTransforms()[instance.objID];
+        auto &mats = env.getMaterials()[instance.objID];
+
+        txfms.push_back(glm::mat4x3(
+            instance.transform[0].x, 
+            instance.transform[0].y, 
+            instance.transform[0].z, 
+            instance.transform[1].x, 
+            instance.transform[1].y, 
+            instance.transform[1].z, 
+            instance.transform[2].x, 
+            instance.transform[2].y, 
+            instance.transform[2].z, 
+            instance.transform[3].x, 
+            instance.transform[3].y, 
+            instance.transform[3].z));
+        mats.push_back(0);
+    }
+
+    uint32_t batch_idx = bps3DState->renderer.render(
+        bps3DState->envs);
+    bps3DState->renderer.waitForFrame(batch_idx);
+}
+
 void Manager::init()
 {
     switch (impl_->cfg.execMode) {
@@ -582,18 +723,22 @@ void Manager::init()
     } break;
     }
 
-    if (impl_->headlessMode) {
-        if (impl_->cfg.enableBatchRenderer) {
-            impl_->renderMgr->readECS();
-        }
+    if (impl_->bps3DState.has_value()) {
+        impl_->bpsRender();
     } else {
-        if (impl_->renderMgr.has_value()) {
-            impl_->renderMgr->readECS();
+        if (impl_->headlessMode) {
+            if (impl_->cfg.enableBatchRenderer) {
+                impl_->renderMgr->readECS();
+            }
+        } else {
+            if (impl_->renderMgr.has_value()) {
+                impl_->renderMgr->readECS();
+            }
         }
-    }
 
-    if (impl_->cfg.enableBatchRenderer) {
-        impl_->renderMgr->batchRender();
+        if (impl_->cfg.enableBatchRenderer) {
+            impl_->renderMgr->batchRender();
+        }
     }
 }
 
@@ -610,18 +755,22 @@ void Manager::step()
     } break;
     }
 
-    if (impl_->headlessMode) {
-        if (impl_->cfg.enableBatchRenderer) {
-            impl_->renderMgr->readECS();
-        }
+    if (impl_->bps3DState.has_value()) {
+        impl_->bpsRender();
     } else {
-        if (impl_->renderMgr.has_value()) {
-            impl_->renderMgr->readECS();
+        if (impl_->headlessMode) {
+            if (impl_->cfg.enableBatchRenderer) {
+                impl_->renderMgr->readECS();
+            }
+        } else {
+            if (impl_->renderMgr.has_value()) {
+                impl_->renderMgr->readECS();
+            }
         }
-    }
 
-    if (impl_->cfg.enableBatchRenderer) {
-        impl_->renderMgr->batchRender();
+        if (impl_->cfg.enableBatchRenderer) {
+            impl_->renderMgr->batchRender();
+        }
     }
 }
 

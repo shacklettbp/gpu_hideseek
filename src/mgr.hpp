@@ -30,6 +30,7 @@ public:
         madrona::render::GPUDevice *extRenderDev = nullptr;
         uint32_t raycastOutputResolution = 64;
         bool headlessMode = false;
+        bool useBPS3D = true;
     };
 
     Manager(const Config &cfg);
