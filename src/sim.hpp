@@ -24,6 +24,7 @@ using madrona::phys::ExternalForce;
 using madrona::phys::ExternalTorque;
 using madrona::math::Vector2;
 using madrona::math::Vector3;
+using madrona::math::Vector4;
 using madrona::math::Quat;
 using madrona::math::Diag3x3;
 using madrona::RNG;
@@ -80,6 +81,10 @@ enum class SimObject : uint32_t {
     NumObjects,
 };
 
+struct BPSCamera {
+    Vector4 worldToCam[4];
+};
+
 struct BPSInstance {
     Vector3 transform[4];
     uint32_t objID;
@@ -88,6 +93,8 @@ struct BPSInstance {
 
 struct BPSBridge {
     uint32_t numInstancesGPU;
+    BPSCamera *camerasGPU;
+    BPSCamera *camerasCPU;
     BPSInstance *instancesGPU;
     BPSInstance *instancesCPU;
     uint32_t *numInstancesCPU;

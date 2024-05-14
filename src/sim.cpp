@@ -849,16 +849,34 @@ static TaskGraphNodeID resetTasks(TaskGraphBuilder &builder,
     return post_reset_broadphase;
 }
 
+inline void bpsCameraSystem(Engine &ctx,
+                            Position &pos,
+                            Rotation &rot,
+                            SimEntity)
+{
+    BPSBridge &bridge = *ctx.data().bpsBridge;
+
+    auto rmat = Mat3x3::fromQuat(rot);
+
+    Vector3 right = rmat[0];
+    Vector3 up = rmat[2];
+    Vector3 fwd = rmat[1];
+
+    BPSCamera cam;
+    cam.worldToCam[0] = Vector4(right.x, up.x, fwd.x, 0.f);
+    cam.worldToCam[1] = Vector4(right.y, up.y, fwd.y, 0.f);
+    cam.worldToCam[2] = Vector4(-right.z, -up.z, -fwd.z, 0.f);
+    cam.worldToCam[3] = Vector4(-dot(right, pos), -dot(up, pos), dot(fwd, pos));
+
+    bridge.camerasGPU[ctx.worldID().idx] = cam;
+}
+
 inline void bpsTxfmSystem(Engine &ctx,
                           Position &pos,
                           Rotation &rot,
                           Scale &scale,
                           ObjectID &obj_id)
 {
-    if (!ctx.data().bpsBridge) {
-        return;
-    }
-
     BPSBridge &bridge = *ctx.data().bpsBridge;
 
     AtomicU32Ref num_instances(bridge.numInstancesGPU);
@@ -880,7 +898,7 @@ inline void bpsTxfmSystem(Engine &ctx,
 inline void bpsCountReadbackSystem(Engine &ctx,
                                    WorldReset)
 {
-    if (!ctx.data().bpsBridge || ctx.worldID().idx != 0) {
+    if (ctx.worldID().idx != 0) {
         return;
     }
 
@@ -942,6 +960,13 @@ static void observationsTasks(const Config &cfg,
                 SimEntity
             >>(deps);
     } else {
+        builder.addToGraph<ParallelForNode<Engine,
+            bpsCameraSystem,
+                Position,
+                Rotation,
+                SimEntity
+            >>({});
+
         builder.addToGraph<ParallelForNode<Engine,
             bpsTxfmSystem,
                 Position,

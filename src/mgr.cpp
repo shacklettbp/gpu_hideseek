@@ -517,10 +517,16 @@ Manager::Impl * Manager::Impl::make(const Config &cfg)
 
             CountT max_render_entities = cfg.numWorlds * max_render_entities_per_world;
 
+
+            bps_bridge.camerasGPU = (BPSCamera *)cu::allocGPU(
+                sizeof(BPSCamera) * cfg.numWorlds);
+            bps_bridge.camerasCPU = (BPSCamera *)cu::allocReadback(
+                sizeof(BPSCamera) * cfg.numWorlds);
+
             bps_bridge.instancesGPU = (BPSInstance *)cu::allocGPU(
-                    sizeof(BPSInstance) * max_render_entities);
+                sizeof(BPSInstance) * max_render_entities);
             bps_bridge.instancesCPU = (BPSInstance *)cu::allocReadback(
-                    sizeof(BPSInstance) * max_render_entities);
+                sizeof(BPSInstance) * max_render_entities);
             bps_bridge.numInstancesCPU = 
                 (uint32_t *)cu::allocStaging(sizeof(uint32_t));
 
@@ -697,6 +703,9 @@ void Manager::Impl::bpsRender()
 {
     uint32_t total_num_instances = *bpsBridge.numInstancesCPU;
 
+    REQ_CUDA(cudaMemcpy(bpsBridge.camerasCPU, bpsBridge.camerasGPU,
+        sizeof(BPSCamera) * cfg.numWorlds, cudaMemcpyDeviceToHost));
+
     REQ_CUDA(cudaMemcpy(bpsBridge.instancesCPU, bpsBridge.instancesGPU,
         sizeof(BPSInstance) * (size_t)total_num_instances,
         cudaMemcpyDeviceToHost));
@@ -715,6 +724,25 @@ void Manager::Impl::bpsRender()
             model_txfms.clear();
             model_mats.clear();
         }
+
+        BPSCamera cam = bpsBridge.camerasCPU[world_idx];
+        env.setCameraView(glm::mat4(
+            cam.worldToCam[0].x,
+            cam.worldToCam[0].y,
+            cam.worldToCam[0].z,
+            cam.worldToCam[0].w,
+            cam.worldToCam[1].x,
+            cam.worldToCam[1].y,
+            cam.worldToCam[1].z,
+            cam.worldToCam[1].w,
+            cam.worldToCam[2].x,
+            cam.worldToCam[2].y,
+            cam.worldToCam[2].z,
+            cam.worldToCam[2].w,
+            cam.worldToCam[3].x,
+            cam.worldToCam[3].y,
+            cam.worldToCam[3].z,
+            cam.worldToCam[3].w));
     }
 
     for (uint32_t i = 0; i < total_num_instances; i++) {
