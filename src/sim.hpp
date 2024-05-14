@@ -65,6 +65,7 @@ enum class ExportID : uint32_t {
 enum class TaskGraphID : uint32_t {
     Init,
     Step,
+    Render,
     NumTaskGraphs,
 };
 

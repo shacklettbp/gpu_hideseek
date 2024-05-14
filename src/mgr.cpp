@@ -191,6 +191,7 @@ void Manager::CPUImpl::step()
 struct Manager::CUDAImpl : Manager::Impl {
     MWCudaExecutor mwGPU;
     MWCudaLaunchGraph stepGraph;
+    MWCudaLaunchGraph renderGraph;
 
     inline void init();
     inline void step();
@@ -207,6 +208,9 @@ void Manager::CUDAImpl::init()
 void Manager::CUDAImpl::step()
 {
     mwGPU.run(stepGraph);
+    if (!bps3DState.has_value()) {
+        mwGPU.run(renderGraph);
+    }
 }
 #endif
 
@@ -345,7 +349,9 @@ static void loadPhysicsObjects(PhysicsLoader &loader)
 }
 
 static imp::ImportedAssets loadRenderObjects(
-        Optional<render::RenderManager> &render_mgr)
+        Optional<render::RenderManager> &render_mgr,
+        std::vector<imp::SourceMaterial> materials,
+        std::vector<imp::SourceTexture> texture_paths)
 {
     std::array<std::string, (size_t)SimObject::NumObjects> render_asset_paths;
     render_asset_paths[(size_t)SimObject::Sphere] =
@@ -377,36 +383,36 @@ static imp::ImportedAssets loadRenderObjects(
         FATAL("Failed to load render assets: %s", import_err);
     }
 
-    auto materials = std::to_array<imp::SourceMaterial>({
-        { math::Vector4{0.4f, 0.4f, 0.4f, 0.0f}, -1, 0.8f, 0.2f,},
-        { math::Vector4{1.0f, 0.1f, 0.1f, 0.0f}, -1, 0.8f, 0.2f,},
-        { math::Vector4{0.1f, 0.1f, 1.0f, 0.0f}, 1, 0.8f, 1.0f,},
-        { math::Vector4{0.5f, 0.3f, 0.3f, 0.0f},  0, 0.8f, 0.2f,},
-        { render::rgb8ToFloat(191, 108, 10), -1, 0.8f, 0.2f },
-        { render::rgb8ToFloat(12, 144, 150), -1, 0.8f, 0.2f },
-        { render::rgb8ToFloat(230, 230, 230),   -1, 0.8f, 1.0f },
-    });
-
     // Override materials
     render_assets->objects[0].meshes[0].materialIDX = 0;
+    render_assets->geoData.meshBVHArrays[0][0].materialIDX = 0;
+
     render_assets->objects[1].meshes[0].materialIDX = 3;
+    render_assets->geoData.meshBVHArrays[1][0].materialIDX = 3;
+
     render_assets->objects[2].meshes[0].materialIDX = 1;
+    render_assets->geoData.meshBVHArrays[2][0].materialIDX = 1;
+
     render_assets->objects[3].meshes[0].materialIDX = 0;
+    render_assets->geoData.meshBVHArrays[3][0].materialIDX = 0;
+
     render_assets->objects[4].meshes[0].materialIDX = 2;
+    render_assets->geoData.meshBVHArrays[4][0].materialIDX = 2;
+
     render_assets->objects[4].meshes[1].materialIDX = 6;
     render_assets->objects[4].meshes[2].materialIDX = 6;
+
     render_assets->objects[5].meshes[0].materialIDX = 4;
+    render_assets->geoData.meshBVHArrays[5][0].materialIDX = 4;
+
     render_assets->objects[6].meshes[0].materialIDX = 5;
+    render_assets->geoData.meshBVHArrays[6][0].materialIDX = 5;
 
     if (render_mgr.has_value()) {
-        render_mgr->loadObjects(render_assets->objects, materials, {
-            { (std::filesystem::path(DATA_DIR) /
-               "green_grid.png").string().c_str() },
-            { (std::filesystem::path(DATA_DIR) /
-               "smile.png").string().c_str() },
-            { (std::filesystem::path(DATA_DIR) /
-               "smile.png").string().c_str() },
-        });
+        render_mgr->loadObjects(render_assets->objects,
+                Span(materials.data(), materials.size()), 
+                Span(texture_paths.data(), (CountT)texture_paths.size()),
+                true);
 
         render_mgr->configureLighting({
             { true, math::Vector3{1.0f, 1.0f, -2.0f}, math::Vector3{1.0f, 1.0f, 1.0f} }
@@ -462,7 +468,29 @@ Manager::Impl * Manager::Impl::make(const Config &cfg)
 
         imp::ImportedAssets::GPUGeometryData gpu_imported_assets;
 
-        auto imported_assets = loadRenderObjects(render_mgr);
+        std::vector<imp::SourceMaterial> materials = {
+            { math::Vector4{0.4f, 0.4f, 0.4f, 0.0f}, -1, 0.8f, 0.2f,},
+            { math::Vector4{1.0f, 0.1f, 0.1f, 0.0f}, -1, 0.8f, 0.2f,},
+            { math::Vector4{0.1f, 0.1f, 1.0f, 0.0f}, 1, 0.8f, 1.0f,},
+            { math::Vector4{0.5f, 0.3f, 0.3f, 0.0f},  0, 0.8f, 0.2f,},
+            { render::rgb8ToFloat(191, 108, 10), -1, 0.8f, 0.2f },
+            { render::rgb8ToFloat(12, 144, 150), -1, 0.8f, 0.2f },
+            { render::rgb8ToFloat(230, 230, 230),   -1, 0.8f, 1.0f },
+        };
+
+        auto green_grid_str = (std::filesystem::path(DATA_DIR) /
+               "green_grid.png").string();
+        auto smile_str = (std::filesystem::path(DATA_DIR) /
+               "smile.png").string();
+
+        std::vector<imp::SourceTexture> textures =  {
+            { green_grid_str.c_str() },
+            { smile_str.c_str() },
+            { smile_str.c_str() }
+        };
+
+        auto imported_assets = loadRenderObjects(
+                render_mgr, materials, textures);
 
         auto gpu_imported_assets_opt =
             imp::ImportedAssets::makeGPUData(imported_assets);
@@ -518,7 +546,10 @@ Manager::Impl * Manager::Impl::make(const Config &cfg)
             .numTaskGraphs = (uint32_t)TaskGraphID::NumTaskGraphs,
             .numExportedBuffers = (uint32_t)ExportID::NumExports,
             .geometryData = &gpu_imported_assets,
+            .materials = { materials.data(), (CountT)materials.size() },
+            .textures = { textures.data(), (CountT)textures.size() },
             .raycastOutputResolution = cfg.raycastOutputResolution,
+            .nearSphere = 2.1f
         }, {
             { GPU_HIDESEEK_SRC_LIST },
             { GPU_HIDESEEK_COMPILE_FLAGS },
@@ -526,7 +557,11 @@ Manager::Impl * Manager::Impl::make(const Config &cfg)
         }, cu_ctx);
 
         MWCudaLaunchGraph step_graph = mwgpu_exec.buildLaunchGraph(
-            TaskGraphID::Step, !cfg.enableBatchRenderer && !cfg.useBPS3D);
+            TaskGraphID::Step, false);
+
+        MWCudaLaunchGraph render_graph = mwgpu_exec.buildLaunchGraph(
+            TaskGraphID::Render, !cfg.enableBatchRenderer && !cfg.useBPS3D,
+            "render_sort");
 
         WorldReset *world_reset_buffer = 
             (WorldReset *)mwgpu_exec.getExported((uint32_t)ExportID::Reset);
@@ -552,6 +587,7 @@ Manager::Impl * Manager::Impl::make(const Config &cfg)
             },
             std::move(mwgpu_exec),
             std::move(step_graph),
+            std::move(render_graph)
         };
 #else
         FATAL("Madrona was not compiled with CUDA support");
@@ -571,7 +607,7 @@ Manager::Impl * Manager::Impl::make(const Config &cfg)
             initRenderManager(cfg, render_gpu_state);
 
         if (render_mgr.has_value()) {
-            loadRenderObjects(render_mgr);
+            loadRenderObjects(render_mgr, {}, {});
             app_cfg.renderBridge = render_mgr->bridge();
          } else {
             app_cfg.renderBridge = nullptr;
