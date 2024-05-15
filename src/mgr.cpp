@@ -15,6 +15,8 @@
 #include <fstream>
 #include <string>
 
+#include <glm/gtx/string_cast.hpp>
+
 #ifdef MADRONA_CUDA_SUPPORT
 #include <madrona/mw_gpu.hpp>
 #include <madrona/cuda_utils.hpp>
@@ -133,7 +135,8 @@ static inline Optional<BPS3DState> initBPS3D(
         sizeof(bps3D::Environment) * (size_t)mgr_cfg.numWorlds);
 
     for (uint32_t world_idx = 0; world_idx < mgr_cfg.numWorlds; world_idx++) {
-        new (&envs[world_idx]) Environment(renderer.makeEnvironment(scene));
+        new (&envs[world_idx]) Environment(renderer.makeEnvironment(
+            scene, glm::mat4(1.f), 100.f, 0.f, 0.001f, 10000.f));
     }
 
     return BPS3DState {
@@ -728,23 +731,47 @@ void Manager::Impl::bpsRender()
         }
 
         BPSCamera cam = bpsBridge.camerasCPU[world_idx];
+
+#if 0
+        printf("%.3f %.3f %.3f %.3f\n",
+            cam.worldToCam.cols[0].x,
+            cam.worldToCam.cols[1].x,
+            cam.worldToCam.cols[2].x,
+            cam.worldToCam.cols[3].x);
+        printf("%.3f %.3f %.3f %.3f\n",
+            cam.worldToCam.cols[0].y,
+            cam.worldToCam.cols[1].y,
+            cam.worldToCam.cols[2].y,
+            cam.worldToCam.cols[3].y);
+        printf("%.3f %.3f %.3f %.3f\n",
+            cam.worldToCam.cols[0].z,
+            cam.worldToCam.cols[1].z,
+            cam.worldToCam.cols[2].z,
+            cam.worldToCam.cols[3].z);
+        printf("%.3f %.3f %.3f %.3f\n",
+            cam.worldToCam.cols[0].w,
+            cam.worldToCam.cols[1].w,
+            cam.worldToCam.cols[2].w,
+            cam.worldToCam.cols[3].w);
+#endif
+
         env.setCameraView(glm::mat4(
-            cam.worldToCam[0].x,
-            cam.worldToCam[0].y,
-            cam.worldToCam[0].z,
-            cam.worldToCam[0].w,
-            cam.worldToCam[1].x,
-            cam.worldToCam[1].y,
-            cam.worldToCam[1].z,
-            cam.worldToCam[1].w,
-            cam.worldToCam[2].x,
-            cam.worldToCam[2].y,
-            cam.worldToCam[2].z,
-            cam.worldToCam[2].w,
-            cam.worldToCam[3].x,
-            cam.worldToCam[3].y,
-            cam.worldToCam[3].z,
-            cam.worldToCam[3].w));
+            cam.worldToCam.cols[0].x,
+            cam.worldToCam.cols[0].y,
+            cam.worldToCam.cols[0].z,
+            cam.worldToCam.cols[0].w,
+            cam.worldToCam.cols[1].x,
+            cam.worldToCam.cols[1].y,
+            cam.worldToCam.cols[1].z,
+            cam.worldToCam.cols[1].w,
+            cam.worldToCam.cols[2].x,
+            cam.worldToCam.cols[2].y,
+            cam.worldToCam.cols[2].z,
+            cam.worldToCam.cols[2].w,
+            cam.worldToCam.cols[3].x,
+            cam.worldToCam.cols[3].y,
+            cam.worldToCam.cols[3].z,
+            cam.worldToCam.cols[3].w));
     }
 
     for (uint32_t i = 0; i < total_num_instances; i++) {
@@ -768,6 +795,7 @@ void Manager::Impl::bpsRender()
             instance.transform[3].x, 
             instance.transform[3].y, 
             instance.transform[3].z));
+
         mats.push_back(0);
     }
 
@@ -1092,15 +1120,17 @@ void Manager::bpsDumpRGB() const
 
     for (uint32_t i = 0; i < impl_->cfg.numWorlds; i++) {
         float *src = cpu_ptr + (uint64_t)i * 
-            (uint64_t)img_width * (uint64_t)img_height * 4;
+            (uint64_t)img_width * (uint64_t)img_height;
 
         for (uint32_t y = 0; y < img_height; y++) {
             for (int x = 0; x < img_height; x++) {
                 float depth = src[y * img_width + x];
                 depth = std::clamp(depth, 0.f, 1.f);
+#if 0
                 if (x == 0 && y == 0) {
                     printf("%f\n", depth);
                 }
+#endif
 
                 uint8_t *out_base = out_ptr + y * img_width * 4 + x * 4;
                 for (int c = 0; c < 3; c++) {
@@ -1111,8 +1141,8 @@ void Manager::bpsDumpRGB() const
         }
 
         stbi_write_bmp((std::string("/tmp/t/img_") + 
-                        std::to_string(num_frames) + "_" + 
-                        std::to_string(i)).c_str(),
+                        std::to_string(i) + "_" + 
+                        std::to_string(num_frames)).c_str(),
             impl_->cfg.batchRenderViewWidth,
             impl_->cfg.batchRenderViewHeight,
             4,

@@ -331,13 +331,17 @@ static void singleCubeLevel(Engine &ctx, Vector3 pos, Quat rot)
         makePlane(ctx, {0, 0, 0}, Quat::angleAxis(0, {1, 0, 0}));
 
     ctx.data().numObstacles = total_entities;
+
+    ctx.get<Position>(ctx.data().agentInterfaces[0]) = Vector3 {
+        0, -6, 0 };
+    ctx.get<Rotation>(ctx.data().agentInterfaces[0]) = Quat { 1, 0, 0, 0 };
 }
 
 static void level2(Engine &ctx)
 {
     Quat cube_rotation = (Quat::angleAxis(atanf(1.f/sqrtf(2.f)), {0, 1, 0}) *
         Quat::angleAxis(toRadians(45), {1, 0, 0})).normalize().normalize();
-    singleCubeLevel(ctx, { 0, 0, 5 }, cube_rotation);
+    singleCubeLevel(ctx, { 0, 0, 3 }, cube_rotation);
 }
 
 static void level3(Engine &ctx)

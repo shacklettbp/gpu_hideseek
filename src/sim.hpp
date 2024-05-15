@@ -82,7 +82,7 @@ enum class SimObject : uint32_t {
 };
 
 struct BPSCamera {
-    Vector4 worldToCam[4];
+    madrona::math::Mat4x4 worldToCam;
 };
 
 struct BPSInstance {

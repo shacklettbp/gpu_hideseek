@@ -169,7 +169,8 @@ int main(int argc, char *argv[])
         .batchRenderViewHeight = raycast_output_resolution,
         .extRenderAPI = wm.gpuAPIManager().backend(),
         .extRenderDev = render_gpu.device(),
-        .raycastOutputResolution = raycast_output_resolution
+        .raycastOutputResolution = raycast_output_resolution,
+        .useBPS3D = false,
     });
     mgr.init();
 

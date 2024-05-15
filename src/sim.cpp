@@ -856,17 +856,28 @@ inline void bpsCameraSystem(Engine &ctx,
 {
     BPSBridge &bridge = *ctx.data().bpsBridge;
 
+    Vector3 cam_pos = pos;
+    cam_pos.z += 0.5f;
     auto rmat = Mat3x3::fromQuat(rot);
 
     Vector3 right = rmat[0];
-    Vector3 up = rmat[1];
-    Vector3 fwd = rmat[2];
+    Vector3 up = rmat[2];
+    Vector3 fwd = rmat[1];
 
     BPSCamera cam;
-    cam.worldToCam[0] = Vector4(right.x, up.x, fwd.x, 0.f);
-    cam.worldToCam[1] = Vector4(right.y, up.y, fwd.y, 0.f);
-    cam.worldToCam[2] = Vector4(right.z, up.z, fwd.z, 0.f);
-    cam.worldToCam[3] = Vector4(-dot(right, pos), -dot(up, pos), -dot(fwd, pos));
+    cam.worldToCam.cols[0] = Vector4(right.x, up.x, -fwd.x, 0.f);
+    cam.worldToCam.cols[1] = Vector4(right.y, up.y, -fwd.y, 0.f);
+    cam.worldToCam.cols[2] = Vector4(right.z, up.z, -fwd.z, 0.f);
+    cam.worldToCam.cols[3] = Vector4(
+        -dot(right, cam_pos), -dot(up, cam_pos), dot(fwd, cam_pos), 1.f);
+
+    //Mat4x4 coord_swap;
+    //coord_swap.cols[0] = Vector4(1, 0, 0, 0);
+    //coord_swap.cols[1] = Vector4(0, 0, 1, 0);
+    //coord_swap.cols[2] = Vector4(0, -1, 0, 0);
+    //coord_swap.cols[3] = Vector4(0, 0, 0, 1);
+
+    //cam.worldToCam  = coord_swap.compose(cam.worldToCam);
 
     bridge.camerasGPU[ctx.worldID().idx] = cam;
 }
