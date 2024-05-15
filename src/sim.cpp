@@ -859,14 +859,14 @@ inline void bpsCameraSystem(Engine &ctx,
     auto rmat = Mat3x3::fromQuat(rot);
 
     Vector3 right = rmat[0];
-    Vector3 up = rmat[2];
-    Vector3 fwd = rmat[1];
+    Vector3 up = rmat[1];
+    Vector3 fwd = rmat[2];
 
     BPSCamera cam;
     cam.worldToCam[0] = Vector4(right.x, up.x, fwd.x, 0.f);
     cam.worldToCam[1] = Vector4(right.y, up.y, fwd.y, 0.f);
-    cam.worldToCam[2] = Vector4(-right.z, -up.z, -fwd.z, 0.f);
-    cam.worldToCam[3] = Vector4(-dot(right, pos), -dot(up, pos), dot(fwd, pos));
+    cam.worldToCam[2] = Vector4(right.z, up.z, fwd.z, 0.f);
+    cam.worldToCam[3] = Vector4(-dot(right, pos), -dot(up, pos), -dot(fwd, pos));
 
     bridge.camerasGPU[ctx.worldID().idx] = cam;
 }

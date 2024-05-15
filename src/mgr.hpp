@@ -69,6 +69,8 @@ public:
 
     madrona::render::RenderManager & getRenderManager();
 
+    void bpsDumpRGB() const;
+
 private:
     struct Impl;
     struct CPUImpl;

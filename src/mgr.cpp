@@ -22,6 +22,8 @@
 
 #include <bps3D.hpp>
 
+#include <stb_image_write.h>
+
 using namespace madrona;
 using namespace madrona::math;
 using namespace madrona::phys;
@@ -1068,6 +1070,59 @@ void Manager::setAction(CountT agent_idx,
 render::RenderManager & Manager::getRenderManager()
 {
     return *impl_->renderMgr;
+}
+
+
+void Manager::bpsDumpRGB() const
+{
+    static int num_frames = 0;
+    float *gpu_ptr = impl_->bps3DState->renderer.getDepthPointer();
+
+    uint32_t img_width = impl_->cfg.batchRenderViewWidth;
+    uint32_t img_height = impl_->cfg.batchRenderViewHeight;
+
+    uint64_t num_bytes = (uint64_t)impl_->cfg.numWorlds *
+        (uint64_t)img_width * (uint64_t)img_height * sizeof(float);
+
+    float *cpu_ptr = (float *)cu::allocReadback(num_bytes);
+    cudaMemcpy(cpu_ptr, gpu_ptr, num_bytes, cudaMemcpyDeviceToHost);
+
+    uint8_t *out_ptr = (uint8_t *)malloc(
+        (uint64_t)img_width * (uint64_t)img_height * 4);
+
+    for (uint32_t i = 0; i < impl_->cfg.numWorlds; i++) {
+        float *src = cpu_ptr + (uint64_t)i * 
+            (uint64_t)img_width * (uint64_t)img_height * 4;
+
+        for (uint32_t y = 0; y < img_height; y++) {
+            for (int x = 0; x < img_height; x++) {
+                float depth = src[y * img_width + x];
+                depth = std::clamp(depth, 0.f, 1.f);
+                if (x == 0 && y == 0) {
+                    printf("%f\n", depth);
+                }
+
+                uint8_t *out_base = out_ptr + y * img_width * 4 + x * 4;
+                for (int c = 0; c < 3; c++) {
+                    out_base[c] = uint8_t(depth * 255.f);
+                }
+                out_base[3] = 255;
+            }
+        }
+
+        stbi_write_bmp((std::string("/tmp/t/img_") + 
+                        std::to_string(num_frames) + "_" + 
+                        std::to_string(i)).c_str(),
+            impl_->cfg.batchRenderViewWidth,
+            impl_->cfg.batchRenderViewHeight,
+            4,
+            out_ptr);
+    }
+
+    free(out_ptr);
+    cudaFree(cpu_ptr);
+
+    num_frames += 1;
 }
 
 }

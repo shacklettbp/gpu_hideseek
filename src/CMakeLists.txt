@@ -34,6 +34,7 @@ target_link_libraries(gpu_hideseek_mgr
         madrona_render
         bps3D
         glm
+        stb
 )
 
 if (TARGET madrona_mw_gpu)

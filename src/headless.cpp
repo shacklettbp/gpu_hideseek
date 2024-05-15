@@ -111,6 +111,7 @@ int main(int argc, char *argv[])
             }
         }
         mgr.step();
+        //mgr.bpsDumpRGB();
     }
 
     auto end = std::chrono::system_clock::now();
