@@ -489,28 +489,8 @@ Manager::Impl * Manager::Impl::make(const Config &cfg)
                 consts::maxBoxes + consts::maxRamps +
                 consts::maxAgents + 30;
 
-            CountT max_render_entities = cfg.numWorlds * max_render_entities_per_world;
-
-
-            bps_bridge.numInstancesGPU = (uint32_t *)cu::allocGPU(
-                sizeof(uint32_t));
-            bps_bridge.camerasGPU = (BPSCamera *)cu::allocGPU(
-                sizeof(BPSCamera) * cfg.numWorlds);
-            bps_bridge.camerasCPU = (BPSCamera *)cu::allocReadback(
-                sizeof(BPSCamera) * cfg.numWorlds);
-
-            bps_bridge.instancesGPU = (BPSInstance *)cu::allocGPU(
-                sizeof(BPSInstance) * max_render_entities);
-            bps_bridge.instancesCPU = (BPSInstance *)cu::allocReadback(
-                sizeof(BPSInstance) * max_render_entities);
-            bps_bridge.numInstancesCPU = 
-                (uint32_t *)cu::allocStaging(sizeof(uint32_t));
-
-            BPSBridge *bps_bridge_gpu = (BPSBridge *)cu::allocGPU(sizeof(BPSBridge));
-            cudaMemcpy(bps_bridge_gpu, &bps_bridge, sizeof(BPSBridge),
-                       cudaMemcpyHostToDevice);
-
-            app_cfg.bpsBridge = bps_bridge_gpu;
+            app_cfg.bpsBridge = bps3D::initBridge(bps_bridge, cfg.numWorlds,
+                                                  max_render_entities_per_world);
         } else {
             app_cfg.bpsBridge = nullptr;
         }
@@ -677,102 +657,7 @@ Manager::~Manager() {
 
 void Manager::Impl::bpsRender()
 {
-    uint32_t total_num_instances = *bpsBridge.numInstancesCPU;
-
-    REQ_CUDA(cudaMemcpy(bpsBridge.camerasCPU, bpsBridge.camerasGPU,
-        sizeof(BPSCamera) * cfg.numWorlds, cudaMemcpyDeviceToHost));
-
-    REQ_CUDA(cudaMemcpy(bpsBridge.instancesCPU, bpsBridge.instancesGPU,
-        sizeof(BPSInstance) * (size_t)total_num_instances,
-        cudaMemcpyDeviceToHost));
-
-    for (uint32_t world_idx = 0; world_idx < cfg.numWorlds; world_idx++) {
-        auto &env = bps3DState->envs[world_idx];
-        auto &txfms = env.getTransforms();
-        auto &mats = env.getMaterials();
-
-        size_t num_models = txfms.size();
-
-        for (size_t i = 0; i < num_models; i++) {
-            auto &model_txfms = txfms[i];
-            auto &model_mats = mats[i];
-
-            model_txfms.clear();
-            model_mats.clear();
-        }
-
-        BPSCamera cam = bpsBridge.camerasCPU[world_idx];
-
-#if 0
-        printf("%.3f %.3f %.3f %.3f\n",
-            cam.worldToCam.cols[0].x,
-            cam.worldToCam.cols[1].x,
-            cam.worldToCam.cols[2].x,
-            cam.worldToCam.cols[3].x);
-        printf("%.3f %.3f %.3f %.3f\n",
-            cam.worldToCam.cols[0].y,
-            cam.worldToCam.cols[1].y,
-            cam.worldToCam.cols[2].y,
-            cam.worldToCam.cols[3].y);
-        printf("%.3f %.3f %.3f %.3f\n",
-            cam.worldToCam.cols[0].z,
-            cam.worldToCam.cols[1].z,
-            cam.worldToCam.cols[2].z,
-            cam.worldToCam.cols[3].z);
-        printf("%.3f %.3f %.3f %.3f\n",
-            cam.worldToCam.cols[0].w,
-            cam.worldToCam.cols[1].w,
-            cam.worldToCam.cols[2].w,
-            cam.worldToCam.cols[3].w);
-#endif
-
-        env.setCameraView(glm::mat4(
-            cam.worldToCam.cols[0].x,
-            cam.worldToCam.cols[0].y,
-            cam.worldToCam.cols[0].z,
-            cam.worldToCam.cols[0].w,
-            cam.worldToCam.cols[1].x,
-            cam.worldToCam.cols[1].y,
-            cam.worldToCam.cols[1].z,
-            cam.worldToCam.cols[1].w,
-            cam.worldToCam.cols[2].x,
-            cam.worldToCam.cols[2].y,
-            cam.worldToCam.cols[2].z,
-            cam.worldToCam.cols[2].w,
-            cam.worldToCam.cols[3].x,
-            cam.worldToCam.cols[3].y,
-            cam.worldToCam.cols[3].z,
-            cam.worldToCam.cols[3].w));
-    }
-
-    for (uint32_t i = 0; i < total_num_instances; i++) {
-        BPSInstance instance = bpsBridge.instancesCPU[i];
-
-        auto &env = bps3DState->envs[instance.envID];
-
-        auto &txfms = env.getTransforms()[instance.objID];
-        auto &mats = env.getMaterials()[instance.objID];
-
-        txfms.push_back(glm::mat4x3(
-            instance.transform[0].x, 
-            instance.transform[0].y, 
-            instance.transform[0].z, 
-            instance.transform[1].x, 
-            instance.transform[1].y, 
-            instance.transform[1].z, 
-            instance.transform[2].x, 
-            instance.transform[2].y, 
-            instance.transform[2].z, 
-            instance.transform[3].x, 
-            instance.transform[3].y, 
-            instance.transform[3].z));
-
-        mats.push_back(0);
-    }
-
-    uint32_t batch_idx = bps3DState->renderer.render(
-        bps3DState->envs);
-    bps3DState->renderer.waitForFrame(batch_idx);
+    bps3D::bpsRender(bps3DState, bpsBridge, cfg.numWorlds);
 }
 
 void Manager::init()
