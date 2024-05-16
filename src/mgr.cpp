@@ -23,6 +23,7 @@
 #endif
 
 #include <bps3D.hpp>
+#include <bps3D_madrona.hpp>
 
 #include <stb_image_write.h>
 
@@ -31,14 +32,9 @@ using namespace madrona::math;
 using namespace madrona::phys;
 using namespace madrona::py;
 
-namespace GPUHideSeek {
+using bps3D::BPS3DState;
 
-struct BPS3DState {
-    bps3D::Renderer renderer;
-    bps3D::AssetLoader assetLoader;
-    std::shared_ptr<bps3D::Scene> scene;
-    bps3D::Environment *envs;
-};
+namespace GPUHideSeek {
 
 struct RenderGPUState {
     render::APILibHandle apiLib;
@@ -114,37 +110,10 @@ static inline Optional<BPS3DState> initBPS3D(
         return Optional<BPS3DState>::none();
     }
 
-    using namespace bps3D;
-
-    Renderer renderer({
-        .gpuID = 0,
-        .numLoaders = 1,
-        .batchSize = mgr_cfg.numWorlds,
-        .imgWidth = mgr_cfg.batchRenderViewWidth,
-        .imgHeight = mgr_cfg.batchRenderViewHeight,
-        .doubleBuffered = false,
-        .mode = RenderMode::Depth,
-    });
-
-    auto asset_loader = renderer.makeLoader();
-
-    auto scene = asset_loader.loadScene(
+    return bps3D::initBPS3D(mgr_cfg.numWorlds,
+        mgr_cfg.batchRenderViewWidth,
+        mgr_cfg.batchRenderViewHeight,
         (std::filesystem::path(DATA_DIR) / "bps3d.bps").string().c_str());
-
-    bps3D::Environment *envs = (bps3D::Environment *)malloc(
-        sizeof(bps3D::Environment) * (size_t)mgr_cfg.numWorlds);
-
-    for (uint32_t world_idx = 0; world_idx < mgr_cfg.numWorlds; world_idx++) {
-        new (&envs[world_idx]) Environment(renderer.makeEnvironment(
-            scene, glm::mat4(1.f), 100.f, 0.f, 0.001f, 10000.f));
-    }
-
-    return BPS3DState {
-        .renderer = std::move(renderer),
-        .assetLoader = std::move(asset_loader),
-        .scene = std::move(scene),
-        .envs = envs,
-    };
 }
 
 struct Manager::Impl {
@@ -523,6 +492,8 @@ Manager::Impl * Manager::Impl::make(const Config &cfg)
             CountT max_render_entities = cfg.numWorlds * max_render_entities_per_world;
 
 
+            bps_bridge.numInstancesGPU = (uint32_t *)cu::allocGPU(
+                sizeof(uint32_t));
             bps_bridge.camerasGPU = (BPSCamera *)cu::allocGPU(
                 sizeof(BPSCamera) * cfg.numWorlds);
             bps_bridge.camerasCPU = (BPSCamera *)cu::allocReadback(

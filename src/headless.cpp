@@ -86,7 +86,7 @@ int main(int argc, char *argv[])
     });
 
     mgr.init();
-    mgr.triggerReset(0, 2);
+    //mgr.triggerReset(0, 2);
     printf("\n\nPost init\n\n");
 
     std::random_device rd;

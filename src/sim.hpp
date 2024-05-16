@@ -10,7 +10,13 @@
 
 #include "sim_flags.hpp"
 
+#include <bps3D_madrona_bridge.hpp>
+
 namespace GPUHideSeek {
+
+using bps3D::BPSCamera;
+using bps3D::BPSInstance;
+using bps3D::BPSBridge;
 
 using madrona::Entity;
 using madrona::CountT;
@@ -79,25 +85,6 @@ enum class SimObject : uint32_t {
     Ramp,
     Box,
     NumObjects,
-};
-
-struct BPSCamera {
-    madrona::math::Mat4x4 worldToCam;
-};
-
-struct BPSInstance {
-    Vector3 transform[4];
-    uint32_t objID;
-    uint32_t envID;
-};
-
-struct BPSBridge {
-    uint32_t numInstancesGPU;
-    BPSCamera *camerasGPU;
-    BPSCamera *camerasCPU;
-    BPSInstance *instancesGPU;
-    BPSInstance *instancesCPU;
-    uint32_t *numInstancesCPU;
 };
 
 struct Config {

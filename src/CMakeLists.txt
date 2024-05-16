@@ -16,6 +16,7 @@ target_link_libraries(gpu_hideseek_cpu_impl
         madrona_common
         madrona_mw_physics
         madrona_rendering_system
+        bps3D
 )
 
 add_library(gpu_hideseek_mgr STATIC
@@ -47,6 +48,8 @@ if (TARGET madrona_mw_gpu)
             GPU_HIDESEEK_COMPILE_FLAGS 
         SRCS
             ${SIMULATOR_SRCS}
+        CUSTOM_FLAGS
+            "-I${CMAKE_SOURCE_DIR}/external/bps3D/include"
     )
 
     target_link_libraries(gpu_hideseek_mgr PRIVATE
@@ -70,7 +73,7 @@ target_link_libraries(gpu_hideseek PRIVATE
 if (TARGET madrona_viz)
     add_executable(viewer viewer.cpp)
     target_link_libraries(viewer PRIVATE
-        madrona_mw_core gpu_hideseek_mgr madrona_viz)
+        madrona_mw_core gpu_hideseek_mgr madrona_viz bps3D)
 
     target_compile_definitions(viewer PRIVATE
         -DDATA_DIR="${CMAKE_CURRENT_SOURCE_DIR}/../data/"

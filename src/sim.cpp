@@ -3,6 +3,8 @@
 #include "sim.hpp"
 #include "level_gen.hpp"
 
+#include <bps3D_madrona_systems.hpp>
+
 using namespace madrona;
 using namespace madrona::math;
 using namespace madrona::phys;
@@ -25,6 +27,10 @@ void Sim::registerTypes(ECSRegistry &registry,
     PhysicsSystem::registerTypes(registry, physicsSolverSelector);
 
     RenderingSystem::registerTypes(registry, cfg.renderBridge);
+
+    if (cfg.bpsBridge != nullptr) {
+        bps3D::bpsRegisterTypes(registry);
+    }
 
     registry.registerComponent<AgentPrepCounter>();
     registry.registerComponent<Action>();
@@ -849,75 +855,6 @@ static TaskGraphNodeID resetTasks(TaskGraphBuilder &builder,
     return post_reset_broadphase;
 }
 
-inline void bpsCameraSystem(Engine &ctx,
-                            Position &pos,
-                            Rotation &rot,
-                            SimEntity)
-{
-    BPSBridge &bridge = *ctx.data().bpsBridge;
-
-    Vector3 cam_pos = pos;
-    cam_pos.z += 0.5f;
-    auto rmat = Mat3x3::fromQuat(rot);
-
-    Vector3 right = rmat[0];
-    Vector3 up = rmat[2];
-    Vector3 fwd = rmat[1];
-
-    BPSCamera cam;
-    cam.worldToCam.cols[0] = Vector4(right.x, up.x, -fwd.x, 0.f);
-    cam.worldToCam.cols[1] = Vector4(right.y, up.y, -fwd.y, 0.f);
-    cam.worldToCam.cols[2] = Vector4(right.z, up.z, -fwd.z, 0.f);
-    cam.worldToCam.cols[3] = Vector4(
-        -dot(right, cam_pos), -dot(up, cam_pos), dot(fwd, cam_pos), 1.f);
-
-    //Mat4x4 coord_swap;
-    //coord_swap.cols[0] = Vector4(1, 0, 0, 0);
-    //coord_swap.cols[1] = Vector4(0, 0, 1, 0);
-    //coord_swap.cols[2] = Vector4(0, -1, 0, 0);
-    //coord_swap.cols[3] = Vector4(0, 0, 0, 1);
-
-    //cam.worldToCam  = coord_swap.compose(cam.worldToCam);
-
-    bridge.camerasGPU[ctx.worldID().idx] = cam;
-}
-
-inline void bpsTxfmSystem(Engine &ctx,
-                          Position &pos,
-                          Rotation &rot,
-                          Scale &scale,
-                          ObjectID &obj_id)
-{
-    BPSBridge &bridge = *ctx.data().bpsBridge;
-
-    AtomicU32Ref num_instances(bridge.numInstancesGPU);
-    uint32_t out_idx = num_instances.fetch_add_relaxed(1);
-
-    BPSInstance &out = bridge.instancesGPU[out_idx];
-
-    Mat3x4 o2w = Mat3x4::fromTRS(pos, rot, scale);
-
-    out.transform[0] = o2w.cols[0];
-    out.transform[1] = o2w.cols[1];
-    out.transform[2] = o2w.cols[2];
-    out.transform[3] = o2w.cols[3];
-
-    out.objID = obj_id.idx;
-    out.envID = ctx.worldID().idx;
-}
-
-inline void bpsCountReadbackSystem(Engine &ctx,
-                                   WorldReset)
-{
-    if (ctx.worldID().idx != 0) {
-        return;
-    }
-
-    BPSBridge &bridge = *ctx.data().bpsBridge;
-    AtomicU32Ref num_instances(bridge.numInstancesGPU);
-    *(bridge.numInstancesCPU) = num_instances.exchange<sync::relaxed>(0);
-}
-
 static void observationsTasks(const Config &cfg,
                               TaskGraphBuilder &builder,
                               Span<const TaskGraphNodeID> deps)
@@ -971,25 +908,7 @@ static void observationsTasks(const Config &cfg,
                 SimEntity
             >>(deps);
     } else {
-        builder.addToGraph<ParallelForNode<Engine,
-            bpsCameraSystem,
-                Position,
-                Rotation,
-                SimEntity
-            >>({});
-
-        builder.addToGraph<ParallelForNode<Engine,
-            bpsTxfmSystem,
-                Position,
-                Rotation,
-                Scale,
-                ObjectID
-            >>({});
-
-        builder.addToGraph<ParallelForNode<Engine,
-            bpsCountReadbackSystem,
-                WorldReset
-            >>({});
+        bps3D::setupTasks(builder);
     }
 
     (void)lidar;
@@ -1100,7 +1019,9 @@ Sim::Sim(Engine &ctx,
 
     ctx.data().hiderTeamReward.store_relaxed(1.f);
 
-    bpsBridge = cfg.bpsBridge;
+    if (cfg.bpsBridge != nullptr) {
+        ctx.singleton<BPSBridge>() = *cfg.bpsBridge;
+    }
 }
 
 MADRONA_BUILD_MWGPU_ENTRY(Engine, Sim, Config, WorldInit);
