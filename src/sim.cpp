@@ -1003,7 +1003,6 @@ Sim::Sim(Engine &ctx,
             ctx.makeEntity<AgentInterface>();
 
         if (enableRender) {
-            printf("Attaching view to entity\n");
             render::RenderingSystem::attachEntityToView(ctx,
                     agent_iface,
                     100.f, 0.001f,

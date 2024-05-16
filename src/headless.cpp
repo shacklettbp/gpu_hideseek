@@ -117,4 +117,5 @@ int main(int argc, char *argv[])
 
     float fps = (double)num_steps * (double)num_worlds / elapsed.count();
     printf("FPS %f\n", fps);
+    printf("Average step time: %f ms\n", 1000.0f * elapsed.count() / (double)num_steps);
 }

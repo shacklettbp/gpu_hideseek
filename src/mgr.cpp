@@ -472,7 +472,7 @@ Manager::Impl * Manager::Impl::make(const Config &cfg)
         }, cu_ctx);
 
         MWCudaLaunchGraph step_graph = mwgpu_exec.buildLaunchGraph(
-            TaskGraphID::Step, false);
+            TaskGraphID::Step, false, "step");
 
         MWCudaLaunchGraph render_graph = mwgpu_exec.buildLaunchGraph(
             TaskGraphID::Render, !cfg.enableBatchRenderer,
