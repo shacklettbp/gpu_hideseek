@@ -64,8 +64,24 @@ int main(int argc, char *argv[])
     }
 
     auto *resolution_str = getenv("MADRONA_RENDER_RESOLUTION");
-
     uint32_t raycast_output_resolution = std::stoi(resolution_str);
+
+    auto *num_agents_str = getenv("HIDESEEK_NUM_AGENTS");
+
+    uint32_t min_hiders = 3;
+    uint32_t max_hiders = 3;
+    uint32_t min_seekers = 2;
+    uint32_t max_seekers = 2;
+
+    if (num_agents_str) {
+        uint32_t num_agents = std::stoi(num_agents_str);
+
+        min_hiders = (num_agents-2);
+        max_hiders = (num_agents-2);
+
+        min_seekers = 2;
+        max_seekers = 2;
+    }
 
     Manager mgr({
         .execMode = exec_mode,
@@ -73,10 +89,10 @@ int main(int argc, char *argv[])
         .numWorlds = (uint32_t)num_worlds,
         .simFlags = SimFlags::Default,
         .randSeed = 5,
-        .minHiders = 3,
-        .maxHiders = 3,
-        .minSeekers = 2,
-        .maxSeekers = 2,
+        .minHiders = min_hiders,
+        .maxHiders = max_hiders,
+        .minSeekers = min_seekers,
+        .maxSeekers = max_seekers,
         .enableBatchRenderer = enable_batch_renderer,
         .batchRenderViewWidth = raycast_output_resolution,
         .batchRenderViewHeight = raycast_output_resolution,

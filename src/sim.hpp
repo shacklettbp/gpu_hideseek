@@ -37,7 +37,7 @@ namespace consts {
 
 static inline constexpr int32_t maxBoxes = 9;
 static inline constexpr int32_t maxRamps = 2;
-static inline constexpr int32_t maxAgents = 6;
+static inline constexpr int32_t maxAgents = 16;
 
 }
 
