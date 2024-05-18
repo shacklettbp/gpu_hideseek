@@ -908,7 +908,6 @@ static void observationsTasks(const Config &cfg,
                 SimEntity
             >>(deps);
     } else {
-        bps3D::setupTasks(builder);
     }
 
     (void)lidar;
@@ -944,7 +943,11 @@ static void setupStepTasks(TaskGraphBuilder &builder, const Config &cfg)
 static void setupRenderTasks(TaskGraphBuilder &builder, 
                              const Config &cfg)
 {
-    RenderingSystem::setupTasks(builder, {});
+    if (!cfg.bpsBridge) {
+        RenderingSystem::setupTasks(builder, {});
+    } else {
+        bps3D::setupTasks(builder);
+    }
 }
 
 void Sim::setupTasks(TaskGraphManager &taskgraph_mgr, const Config &cfg)

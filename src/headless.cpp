@@ -88,12 +88,13 @@ int main(int argc, char *argv[])
     mgr.init();
     //mgr.triggerReset(0, 2);
     printf("\n\nPost init\n\n");
+    mgr.step();
 
     std::random_device rd;
     std::mt19937 rand_gen(rd());
     std::uniform_int_distribution<int32_t> act_rand(0, 4);
 
-    auto start = std::chrono::system_clock::now();
+    auto start = std::chrono::steady_clock::now();
 
     for (CountT i = 0; i < (CountT)num_steps; i++) {
         if (rand_actions) {
@@ -116,7 +117,7 @@ int main(int argc, char *argv[])
         //mgr.bpsDumpRGB();
     }
 
-    auto end = std::chrono::system_clock::now();
+    auto end = std::chrono::steady_clock::now();
     std::chrono::duration<double> elapsed = end - start;
 
     float fps = (double)num_steps * (double)num_worlds / elapsed.count();

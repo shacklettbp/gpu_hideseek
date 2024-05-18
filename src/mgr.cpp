@@ -10,6 +10,7 @@
 
 #include <array>
 #include <charconv>
+#include <chrono>
 #include <iostream>
 #include <filesystem>
 #include <fstream>
@@ -128,6 +129,11 @@ struct Manager::Impl {
     uint32_t raycastOutputResolution;
     bool headlessMode;
     BPSBridge bpsBridge;
+    double avgBPSTime;
+    int64_t numBPSSteps;
+
+    double avgDebugTime { 0.0 };
+    int64_t numDebugSteps { -1 };
 
     static inline Impl * make(const Config &cfg);
 
@@ -166,6 +172,15 @@ struct Manager::CUDAImpl : Manager::Impl {
     MWCudaExecutor mwGPU;
     MWCudaLaunchGraph stepGraph;
     MWCudaLaunchGraph renderGraph;
+
+    inline ~CUDAImpl()
+    {
+        printf("Time : %f\n", avgBPSTime);
+        printf("Debug Time : %f\n", avgDebugTime);
+
+        printf("FPS: %f\n", double(cfg.numWorlds) / (avgBPSTime / 1000.0));
+        printf("Debug FPS: %f\n", double(cfg.numWorlds) / (avgDebugTime / 1000.0));
+    }
 
     inline void init();
     inline void step();
@@ -606,6 +621,7 @@ Manager::Impl * Manager::Impl::make(const Config &cfg)
                 cfg.raycastOutputResolution,
                 !cfg.enableBatchRenderer,
                 BPSBridge {},
+                0.0, -1,
             },
             std::move(cpu_exec),
         };
@@ -657,7 +673,24 @@ Manager::~Manager() {
 
 void Manager::Impl::bpsRender()
 {
+    auto start = std::chrono::steady_clock::now();
+
+    static_cast<CUDAImpl *>(this)->mwGPU.run(
+        static_cast<CUDAImpl *>(this)->renderGraph);
+
     bps3D::bpsRender(bps3DState, bpsBridge, cfg.numWorlds);
+
+    auto end = std::chrono::steady_clock::now();
+    double elapsed = std::chrono::duration<double, std::milli>(end - start).count();
+
+    if (numBPSSteps == -1) {
+        numBPSSteps = 0;
+    } else {
+        avgBPSTime = avgBPSTime * (double(numBPSSteps) /
+            double(numBPSSteps + 1)) + 
+            elapsed * (1.0 / double(numBPSSteps + 1));
+        numBPSSteps += 1;
+    }
 }
 
 void Manager::init()
@@ -694,6 +727,8 @@ void Manager::init()
 
 void Manager::step()
 {
+    auto start = std::chrono::steady_clock::now();
+
     switch (impl_->cfg.execMode) {
     case ExecMode::CUDA: {
 #ifdef MADRONA_CUDA_SUPPORT
@@ -704,6 +739,19 @@ void Manager::step()
         static_cast<CPUImpl *>(impl_)->step();
     } break;
     }
+
+    auto end = std::chrono::steady_clock::now();
+    double elapsed = std::chrono::duration<double, std::milli>(end - start).count();
+
+    if (impl_->numDebugSteps == -1) {
+        impl_->numDebugSteps = 0;
+    } else {
+        impl_->avgDebugTime = impl_->avgDebugTime * (double(impl_->numDebugSteps) /
+            double(impl_->numDebugSteps + 1)) + 
+            elapsed * (1.0 / double(impl_->numDebugSteps + 1));
+        impl_->numDebugSteps += 1;
+    }
+
 
     if (impl_->bps3DState.has_value()) {
         impl_->bpsRender();
@@ -722,6 +770,7 @@ void Manager::step()
             impl_->renderMgr->batchRender();
         }
     }
+
 }
 
 
