@@ -228,7 +228,7 @@ struct AgentInterface : public madrona::Archetype<
 
 struct DynAgent : public madrona::Archetype<
     RigidBody,
-    Renderable,
+    // Renderable,
     OwnerTeam,
     GrabData
 > {};

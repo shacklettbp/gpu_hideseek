@@ -124,6 +124,18 @@ int main(int argc, char *argv[])
     uint32_t num_seekers = 2;
     uint32_t num_views = num_hiders + num_seekers;
 
+    auto *num_agents_str = getenv("HIDESEEK_NUM_AGENTS");
+
+    if (num_agents_str) {
+        uint32_t num_agents = std::stoi(num_agents_str);
+
+        num_hiders = (num_agents-2);
+
+        num_seekers = 2;
+
+        num_views = num_seekers + num_hiders;
+    }
+
     auto replay_log = Optional<HeapArray<int32_t>>::none();
     uint32_t cur_replay_step = 0;
     uint32_t num_replay_steps = 0;

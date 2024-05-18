@@ -15,7 +15,8 @@ static Entity makeAgent(Engine &ctx, AgentType agent_type)
         ctx.data().agentInterfaces[ctx.data().numActiveAgents++];
     ctx.get<AgentType>(agent_iface) = agent_type;
 
-    Entity agent = ctx.makeRenderableEntity<DynAgent>();
+    //Entity agent = ctx.makeRenderableEntity<DynAgent>();
+    Entity agent = ctx.makeEntity<DynAgent>();
     ctx.get<SimEntity>(agent_iface).e = agent;
 
     ctx.get<AgentActiveMask>(agent_iface).mask = 1.f;
